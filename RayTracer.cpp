@@ -131,7 +131,7 @@ Ray generateRay(int i, int j, parser::Camera cam)
 }
 
 // interseciton of sphere, returns t value
-double intersectSphere(Ray r, parser::Sphere s)
+double intersectSphere(Ray r, parser::Sphere s, vector<parser::Vec3f> vertex)
 {
     double A, B, C; // constants for the quadratic equation
 
@@ -142,17 +142,110 @@ double intersectSphere(Ray r, parser::Sphere s)
     double t, t1, t2;
     int i;
 
-    scenter = s.center;
-    sradius = s.r;
+    scenter = vertex[s.center_vertex_id];
+    sradius = s.radius;
 
-    // calculate A B C and solve for t
-    // return t
+    C = (r.a.x-scenter.x)*(r.a.x-scenter.x) 
+        + (r.a.y - scenter.y)*(r.a.y - scenter.y) 
+        + (r.a.z - scenter.z)*(r.a.z - scenter.z)
+        - sradius*sradius;
+
+    B = 2*r.b.x*(r.a.x - scenter.x)
+      + 2*r.b.y*(r.a.y - scenter.y)
+      + 2*r.b.z*(r.a.z - scenter.z);
+
+    A = r.b.x*r.b.x + r.b.y*r.b.y + r.b.z*r.b.z;
+
+    delta = B*B -4*A*C;
+
+    if(delta<0) return -1; // no solution for quadratic eqn.
+    else if(delta == 0) // has one distinct root
+    {
+        t = -B / (2*A);
+    } 
+    else
+    {
+        double tmp;
+        delta = sqrt(delta);
+        A = 2*A;
+        t1 = (-B + delta) / A;
+        t2 = (-B - delta) / A;
+
+        if(t2<t1){
+            tmp = t2;
+            t2 = t1;
+            t1 = tmp;
+        }
+        if(t1>=1.0) t = t1;
+        else t = -1;
+    }
+    return t;
 }
 
 // intersection of triangle, returns t value
-double intersectTriangle(Ray r, parser::Triangle tri)
+double intersectTriangle(Ray r, parser::Triangle tri, vector<parser::Vec3f> vertex)
 {
     // we'll use barycentric coordinate system
+    // solve for t & beta & gamma 
+    // by using matrices, determinant & Cramer rule
+    //    |g a d|   |t    |   |j|
+    //    |h b e| * |beta | = |k|
+    //    |i c f|   |gamma|   |l|
+    //    a -> v1, b -> v2, z -> v3
+
+    double  a,b,c,d,e,f,g,h,i,j,k,l;
+	double beta,gamma,t;
+	
+	double eimhf,gfmdi,dhmeg,akmjb,jcmal,blmkc;
+
+	double M;
+	
+	double dd;
+	parser::Vec3f ma,mb,mc;
+
+	ma = vertex[tri.indices.v0_id];
+	mb = vertex[tri.indices.v1_id];
+	mc = vertex[tri.indices.v2_id];
+	
+	a = ma.x-mb.x;
+	b = ma.y-mb.y;
+	c = ma.z-mb.z;
+
+	d = ma.x-mc.x;
+	e = ma.y-mc.y;
+	f = ma.z-mc.z;
+	
+	g = r.b.x;
+	h = r.b.y;
+	i = r.b.z;
+	
+	j = ma.x-r.a.x;
+	k = ma.y-r.a.y;
+	l = ma.z-r.a.z;
+	
+	eimhf = e*i-h*f;
+	gfmdi = g*f-d*i;
+	dhmeg = d*h-e*g;
+	akmjb = a*k-j*b;
+	jcmal = j*c-a*l;
+	blmkc = b*l-k*c;
+
+	M = a*eimhf+b*gfmdi+c*dhmeg;
+    if (M==0) return -1;
+	
+	t = -(f*akmjb+e*jcmal+d*blmkc)/M;
+	
+	if (t<1.0) return -1;
+	
+	gamma = (i*akmjb+h*jcmal+g*blmkc)/M;
+	
+	if (gamma<0 || gamma>1) return -1;
+	
+	beta = (j*eimhf+k*gfmdi+l*dhmeg)/M;
+	
+	if (beta<0 || beta>(1-gamma)) return -1;
+	
+	return t;
 }
 int main(int argc, char* argv[])
 {
