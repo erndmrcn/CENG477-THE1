@@ -8,20 +8,14 @@
 typedef unsigned char RGB[3];
 using namespace std;
 
-class Vec3
-{
-    public:
-        double x, y, z;
-}
-
 class Ray
 {
     // represented like r(t) = e + dt 
 public:
     // coordinates of the first vector (e)
-    Vec3 a;
+    parser::Vec3f a;
     // coordinates of the second vector (d)
-    Vec3 b;
+    parser::Vec3f b;
 };
 
 // Cross product of 2 vectors
@@ -31,9 +25,9 @@ public:
 // x -> i*i + j*k + k*j
 // y -> j*j + i*k + k*i
 // z -> k*k + i*j + j*i
-Vec3 crossProduct(Vec3 a, Vec3 b)
+parser::Vec3f crossProduct(parser::Vec3f a, parser::Vec3f b)
 {
-    Vec3 tmp;
+    parser::Vec3f tmp;
 
     tmp.x = a.y*b.z - a.z*b.y;
     tmp.y = a.z*b.x - a.x*b.z;
@@ -44,27 +38,27 @@ Vec3 crossProduct(Vec3 a, Vec3 b)
 
 // Dot product of 2 vectors
 // i*i = 1, i*j = 0, i*k = 0
-double dotProduct(Vec3 a, Vec b)
+double dotProduct(parser::Vec3f a, parser::Vec3f b)
 {
     return a.x*b.x+a.y*b.y+a.z*b.z;
 }
 
 // length square function
-double length2(Vec3 a)
+double length2(parser::Vec3 a)
 {
     return (a.x*a.x+a.y*a.y+a.z*a.z);
 }
 
 // length function
-double length(Vec3 a)
+double length(parser::Vec3 a)
 {
     return sqrt(a.x*a.x+a.y*a.y*+a.z*a.z)
 }
 
 // normalize function
-Vec3 normalize(Vec3 v)
+parser::Vec3f normalize(parser::Vec3f v)
 {
-    Vec3 tmp;
+    parser::Vec3f tmp;
     double l;
 
     l = length(v);
@@ -76,9 +70,9 @@ Vec3 normalize(Vec3 v)
 }
 
 // add function
-Vec3 add(Vec3 a, Vec3 b)
+parser::Vec3f add(parser::Vec3 a, parser::Vec3 b)
 {
-    Vec3 tmp;
+    parser::Vec3f tmp;
     tmp.x = a.x+b.x;
     tmp.y = a.y+b.y;
     tmp.z = a.z+b.z;
@@ -87,24 +81,23 @@ Vec3 add(Vec3 a, Vec3 b)
 }
 
 // multiplication of a matrix by a scalar
-Vec3 mult(Vec3 v, double d)
+parser::Vec3f mult(parser::Vec3f v, double d)
 {
-    Vec3 tmp;
+    parser::Vec3f tmp;
     tmp.x = v.x*d;
     tmp.y = v.y*d;
     tmp.z = v.z*d;
 
     return tmp;
 }
-
 // distance between two vectors
-double distance(Vec3 a, Vec3 b)
+double distance(parser::Vec3f a, parser::Vec3f b)
 {
     return sqrt((a.x-b.x)*(a.x-b.x) + (a.y-b.y)*(a.y-b.y) + (a.z-b.z)*(a.z-b.z));
 }
 
 // check if two vectors is equal
-int equal(Vec3 a, Vec3 b)
+int equal(parser::Vec3f a, parser::Vec3f b)
 {
     if((ABS((a.x-b.x))<EPSILON) && (ABS((a.y-b.y))<EPSILON) && (ABS((a.z-b.z))<EPSILON))
         return 1;
@@ -113,7 +106,7 @@ int equal(Vec3 a, Vec3 b)
 }
 
 // ray generation function 
-Ray generateRay(int i, int j)
+Ray generateRay(int i, int j, parser::Camera cam)
 {
     // ray representation -> r(t) = o + td
     // o-> origin, t->variable
@@ -126,25 +119,26 @@ Ray generateRay(int i, int j)
     // q = m + lu + tv --- u&v are direction vectors
     // s = q + (su)u -(sv)v --- u&v are direction vectors
 
-    Vec3 su, sv, s;
-
-    // we need each camera's position, pixelwidth
-    // pixelHeight and so on
+    parser::Vec3f su, sv, s;
+    double pixelW = (cam.-cam.l)/(double)sizeX;
+    double halfPixelW = pixelW*0.5;
+    double pixelH = ()
+    tmp.a = cam.position;
+    su = mult(cam.up,cam.l+(i*cam.image_width)+)
 
     // for each camera different rays will be created
     // ...
 }
 
 // interseciton of sphere, returns t value
-double intersectSphere(Ray r, Sphere r)
+double intersectSphere(Ray r, parser::Sphere s)
 {
     double A, B, C; // constants for the quadratic equation
 
     double delta; // solving for quadratic eqn.
-    Vec3 scenter;
+    parser::Vec3f scenter;
     double sradius;
-    Vec3 p;
-
+    parser::Vec3f p;
     double t, t1, t2;
     int i;
 
@@ -155,6 +149,11 @@ double intersectSphere(Ray r, Sphere r)
     // return t
 }
 
+// intersection of triangle, returns t value
+double intersectTriangle(Ray r, parser::Triangle tri)
+{
+    // we'll use barycentric coordinate system
+}
 int main(int argc, char* argv[])
 {
     // Sample usage for reading an XML scene file
