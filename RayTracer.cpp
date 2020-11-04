@@ -13,9 +13,16 @@ class Ray
     // represented like r(t) = e + dt 
 public:
     // coordinates of the first vector (e)
-    parser::Vec3f a;
+    parser::Vec3f origin;
     // coordinates of the second vector (d)
-    parser::Vec3f b;
+    parser::Vec3f direction;
+};
+
+struct color{
+
+    int R;
+    int G;
+    int B;
 };
 
 // Cross product of 2 vectors
@@ -43,7 +50,7 @@ double dotProduct(parser::Vec3f a, parser::Vec3f b)
     return a.x*b.x+a.y*b.y+a.z*b.z;
 }
 
-// length square function
+// length square function //?
 double length2(parser::Vec3 a)
 {
     return (a.x*a.x+a.y*a.y+a.z*a.z);
@@ -69,6 +76,20 @@ parser::Vec3f normalize(parser::Vec3f v)
     return tmp;
 }
 
+// compute clambed vector ---- should we check colors.x < 0 condition??
+parser::Vec3i clamb(parser::Vec3f colors){
+
+    if(colors.x > 255){ colors.x = 255; }
+    else { colors.x = (int) colors.x; }
+
+    if(colors.y > 255){ colors.y = 255; }
+    else { colors.y = (int) colors.y; }
+
+     if(colors.z > 255){ colors.z = 255; }
+    else { colors.z = (int) colors.z; }
+
+}
+
 // add function
 parser::Vec3f add(parser::Vec3 a, parser::Vec3 b)
 {
@@ -89,6 +110,16 @@ parser::Vec3f mult(parser::Vec3f v, double d)
     tmp.z = v.z*d;
 
     return tmp;
+}
+
+//element-wise multiplication of two vectors 
+parser::Vec3f elementMult(parser::Vec3f first, parser:::Vec3f second){
+
+    parser::Vec3f result;
+
+    result.x = first.x * second.x;
+    result.y = first.y * second.y;
+    result.z = first.z * second.z;
 }
 // distance between two vectors
 double distance(parser::Vec3f a, parser::Vec3f b)
@@ -113,11 +144,16 @@ Ray generateRay(int i, int j, parser::Camera cam)
     Ray tmp;
     // su = (i + 0.5)(r-l)/nx 
     // r->right, l->left, nx->image width
-    // sv = (i + 0.5)(t-b)/ny
+    // sv = (j + 0.5)(t-b)/ny
     // t->top, b->botton, ny->image height
     // m = e + -w(distance) --- w direction vector
     // q = m + lu + tv --- u&v are direction vectors
     // s = q + (su)u -(sv)v --- u&v are direction vectors
+
+    //h: camera.nearplane gives us the coordinates o image as l,r,b,t. I think nearplane.x = l, .y= r, .z=b and .w = t
+    //also camera.image width&heigh give the resolution. 
+    //so, camera.imagewidth = # of cplumns, nx and 
+    //camera.imageheight = # of rows, ny
 
     parser::Vec3f su, sv, s;
     double pixelW = (cam.-cam.l)/(double)sizeX;
@@ -128,6 +164,24 @@ Ray generateRay(int i, int j, parser::Camera cam)
 
     // for each camera different rays will be created
     // ...
+
+    //alternative code according to my comments, we can rearrenge two code then.
+    double su, sv;
+    parser::Vec3f s, cam_u, q, m; //cam_u is the right dir. vector of camre. we compute u = v x w 
+                               //q is the top-left corner coordinate vector of image
+
+    su = (i + 0.5) * ((cam.near_plane.y - cam.near_plane.x) / cam.image_width);
+    sv = (j + 0.5) * ((cam.near_plane.w - cam.near_plane.z) / cam.image_height);
+    
+    cam_u = crossProduct(cam.up, mult(cam.gaze, -1));
+    m = add(cam.position, dotProduct(cam.gaze, cam.near_distance)); //m = q+ (-w + d) --> intersection point of image plane and gaze vector
+    q = add(cam.position, add(mult(cam_u, cam.near_plane.x), mult(cam.up, cam.near_plane.w)));
+    s = add(q, add(mult(cam_u, su) + mult(cam.up, sv)));
+
+    tmp.origin = cam.position;
+    tmp.direction = add(s, mult(cam.position,-1)) // a substract method can be written.
+                                                    //tmp.direction = s - e where e = cam.position
+
 }
 
 // interseciton of sphere, returns t value
@@ -247,6 +301,74 @@ double intersectTriangle(Ray r, parser::Triangle tri, vector<parser::Vec3f> vert
 	
 	return t;
 }
+
+//compute irradience E_i --> E_i = I / r^2 where r = |wi| and I is intensity
+parser::Vec3f E_i(parser::Vec3f Intensity, parser::Vec3f w_i){
+
+    parser::Vec3f result_E;
+
+    float r = length(w_i);
+
+    result_E = mult(Intensity, 1/(r*r));
+
+    return result_E;
+}
+
+//compute ambient shading ---> L_a = k_a * I_a
+parser::Vec3f L_a(int obj_id){
+
+    parser::Vec3f result_La;
+
+    parser::Vec3f k_a = Scene.materials[obj_id - 1].ambient; 
+
+    parser::Vec3f I_a = Scene.ambient_light;
+
+    result_La = elementMult(k_a, I_a);
+
+    return result_La;
+
+}
+
+//compute diffuse shading---> L_d = k_d * costheta * E_i and costheta = max(0, w_i * n)
+parser::Vec3f L_d(parser::Vec3f w_i, parser::Vec3f E_i, parser::Vec3f n, int obj_id){
+
+    parser::Vec3f result_Ld;
+
+    float cos_theta = max(0, dotProduct(w_i, n));
+
+    parser::Vec3f k_d = Scene.materials[obj_id - 1].diffuse; 
+
+    result_Ld = mult(cos_theta * (elementMult(k_d, E_i)));
+
+    return result_Ld;
+
+}
+
+//compute specular shading --> L_s = k_s*(cosalpha)^p * E_i
+parser::Vec3f L_s(parser::Vec3f w_i, parser::Vec3f w_o, parser::Vec3f E_i, parser::Vec3f n, int obj_id){
+
+    parser::Vec3f result_Ls;
+
+    parser::Vec3f halfVector;
+
+    float cos_alpha;
+
+    float phong = Scene.materials[obj_id - 1].phong_exponent;
+
+    halfVector = normalize(add(w_i, w_o));
+
+    cosalpha = max(0, dotProduct(n, halfVector));
+
+    result_Ls = mult(power(cos_alpha, phong) * elementMult(k_s, E_i));
+
+    return result_Ls;
+
+}
+
+
+
+
+
 int main(int argc, char* argv[])
 {
     // Sample usage for reading an XML scene file
