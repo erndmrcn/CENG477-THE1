@@ -112,8 +112,8 @@ parser::Vec3f mult(parser::Vec3f v, double d)
     return tmp;
 }
 
-//element-wise multiplication of two vectors 
-parser::Vec3f elementMult(parser::Vec3f first, parser:::Vec3f second){
+//element-wise multiplication of two vectors Dot product 
+parser::Vec3f elementMult(parser::Vec3f first, parser::Vec3f second){
 
     parser::Vec3f result;
 
@@ -155,13 +155,6 @@ Ray generateRay(int i, int j, parser::Camera cam)
     //so, camera.imagewidth = # of cplumns, nx and 
     //camera.imageheight = # of rows, ny
 
-    parser::Vec3f su, sv, s;
-    double pixelW = (cam.-cam.l)/(double)sizeX;
-    double halfPixelW = pixelW*0.5;
-    double pixelH = ()
-    tmp.a = cam.position;
-    su = mult(cam.up,cam.l+(i*cam.image_width)+)
-
     // for each camera different rays will be created
     // ...
 
@@ -169,13 +162,18 @@ Ray generateRay(int i, int j, parser::Camera cam)
     double su, sv;
     parser::Vec3f s, cam_u, q, m; //cam_u is the right dir. vector of camre. we compute u = v x w 
                                //q is the top-left corner coordinate vector of image
-
-    su = (i + 0.5) * ((cam.near_plane.y - cam.near_plane.x) / cam.image_width);
-    sv = (j + 0.5) * ((cam.near_plane.w - cam.near_plane.z) / cam.image_height);
+    double l = cam.near_plane.x;
+    double r = cam.near_plane.y;
+    double b = cam.near_plane.z;
+    double t = cam.near_plane.w;
+    int width = cam.image_width;
+    int height = cam.image_height;
+    su = (i + 0.5) * ((r - l) / width);
+    sv = (j + 0.5) * ((t - b) / height);
     
     cam_u = crossProduct(cam.up, mult(cam.gaze, -1));
     m = add(cam.position, dotProduct(cam.gaze, cam.near_distance)); //m = q+ (-w + d) --> intersection point of image plane and gaze vector
-    q = add(cam.position, add(mult(cam_u, cam.near_plane.x), mult(cam.up, cam.near_plane.w)));
+    q = add(cam.position, add(mult(cam_u, l), mult(cam.up, t)));
     s = add(q, add(mult(cam_u, su) + mult(cam.up, sv)));
 
     tmp.origin = cam.position;
@@ -338,7 +336,7 @@ parser::Vec3f L_d(parser::Vec3f w_i, parser::Vec3f E_i, parser::Vec3f n, int obj
 
     parser::Vec3f k_d = Scene.materials[obj_id - 1].diffuse; 
 
-    result_Ld = mult(cos_theta * (elementMult(k_d, E_i)));
+    result_Ld = mult((elementMult(k_d, E_i), cos_theta));  /// ???
 
     return result_Ld;
 
@@ -357,9 +355,9 @@ parser::Vec3f L_s(parser::Vec3f w_i, parser::Vec3f w_o, parser::Vec3f E_i, parse
 
     halfVector = normalize(add(w_i, w_o));
 
-    cosalpha = max(0, dotProduct(n, halfVector));
+    cos_alpha = max(0, dotProduct(n, halfVector));
 
-    result_Ls = mult(power(cos_alpha, phong) * elementMult(k_s, E_i));
+    result_Ls = mult(elementMult(k_s, E_i), power(cos_alpha, phong));
 
     return result_Ls;
 
@@ -414,6 +412,50 @@ int main(int argc, char* argv[])
     {
         for (int x = 0; x < width; ++x)
         {
+            // for sphere
+            // for mesh
+            // for triangle
+            // different loops for each other
+            // hold intersecting point and if it is the first intersection point use light/shadow
+            // consider multiple light sources  
+            // implement shadow function
+            // recursive for reflection
+            Ray r; // ray
+            double tmin = 50000;
+            int closestObj = -1;
+
+            r = generateRay(x,y);
+
+            // check spheres
+            for(int k = 0; k<scene.spheres.size(); k++)
+            {
+                double t;
+                parser::Sphere* obj;
+                t = intersectSphere(r, scene.spheres[k]);
+
+                if(t<tmin)
+                {
+                    tmin = t;
+                    obj = &(scene.spheres[k]);
+                }
+                if(obj)
+                {
+                    image[x][y] = length(L_a(obj->material_id));
+                    for(int l = 0; l<scene.point_lights.size(); l++)
+                    {
+                        // compute the shadows ray s from x to I
+                        //for each object p
+                            // if s intersects p before the light source
+                                // continue
+                        // picek color += L_d + L_s
+                    }
+                }
+                else
+                {
+                    // pixel color = background color
+                }
+            }    
+
             int colIdx = x / columnWidth;
             image[i++] = BAR_COLOR[colIdx][0];
             image[i++] = BAR_COLOR[colIdx][1];
