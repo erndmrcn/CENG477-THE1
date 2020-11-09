@@ -369,7 +369,6 @@ parser::Vec3f L_s(parser::Scene scene, parser::Vec3f w_i, parser::Vec3f w_o, par
     result_Ls = mult(elementMult(k_s, E_i), (double) pow(cos_alpha, phong));
 
     return result_Ls;
-
 }
 
 int main(int argc, char* argv[])
@@ -425,17 +424,17 @@ int main(int argc, char* argv[])
             // implement shadow function
             // recursive for reflection
             Ray r; // ray
-            double tmin = 50000;
+            double tmin = __DBL_MAX__;
             int closestObj = -1;
 
-            r = generateRay(x,y);
+            r = generateRay(x,y, scene.cameras[0]);
 
             // check spheres
             for(int k = 0; k<scene.spheres.size(); k++)
             {
                 double t;
                 parser::Sphere* obj;
-                t = intersectSphere(r, scene.spheres[k]);
+                t = intersectSphere(r, scene.spheres[k], scene.vertex_data);
 
                 if(t<tmin)
                 {
@@ -444,7 +443,7 @@ int main(int argc, char* argv[])
                 }
                 if(obj)
                 {
-                    image[x][y] = length(L_a(obj->material_id));
+                    //image[x][y] = length(L_a(obj->material_id));
                     for(int l = 0; l<scene.point_lights.size(); l++)
                     {
                         // compute the shadows ray s from x to I
