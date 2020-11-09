@@ -433,25 +433,25 @@ int main(int argc, char* argv[])
             for(int k = 0; k<scene.spheres.size(); k++)
             {
                 double t;
-                parser::Sphere* obj;
+                parser::Sphere obj;
                 t = intersectSphere(r, scene.spheres[k], scene.vertex_data);
-
+                int check = 0;
                 if(t<tmin)
                 {
                     tmin = t;
-                    obj = &(scene.spheres[k]);
+                    obj = (scene.spheres[k]);
+                    check = 1;
                 }
-                if(obj)
+                if(check)
                 {
-                    //image[x][y] = length(L_a(obj->material_id));
-                    for(int l = 0; l<scene.point_lights.size(); l++)
+                    /*for(int l = 0; l<scene.point_lights.size(); l++)
                     {
                         // compute the shadows ray s from x to I
                         //for each object p
                             // if s intersects p before the light source
                                 // continue
                         // picek color += L_d + L_s
-                    }
+                    }*/
                 }
                 else
                 {
@@ -459,10 +459,10 @@ int main(int argc, char* argv[])
                 }
             }    
 
-            int colIdx = x / columnWidth;
+            /*int colIdx = x / columnWidth;
             image[i++] = BAR_COLOR[colIdx][0];
             image[i++] = BAR_COLOR[colIdx][1];
-            image[i++] = BAR_COLOR[colIdx][2];
+            image[i++] = BAR_COLOR[colIdx][2];*/
         }
     }
 
