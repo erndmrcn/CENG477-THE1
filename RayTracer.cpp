@@ -445,28 +445,43 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
             {
                 // the closest object that intersects with the ray is a triangle
                 // and we use scene.triangles[closestTri] to retrieve the data
-                /*for(int l = 0; l<scene.point_lights.size(); l++)
-                {
-                    // compute the shadows ray s from x to I
-                    //for each object p
-                        // if s intersects p before the light source
-                            // continue
-                    // pixel color += L_d + L_s
-                }*/
+                // add L_a
+                // for each light sources add L_d and L_s
+                parser::Vec3f temp = L_a(scene.triangles[closestTri].material_id, scene); 
+                image[i++] = tep.x;
+                image[i++] = temp.y;
+                image[i++] = temp.z;
             }
             else if(closestMeshTri != -1 && closestMesh != -1) 
             {
                 // the closest object that intersects with the ray is a mesh
                 // and we use scene.meshes[closestMesh].triangles[closestMeshTri] to retrieve the data
+                // add L_a
+                // for each light sources add L_d and L_s
+                parser::Vec3f temp = L_a(scene.meshes[closestMesh].faces[closestMeshTri].material_id , scene); 
+                image[i++] = temp.x;
+                image[i++] = temp.y;
+                image[i++] = temp.z;
+                
             }
             else if(closestSphere != -1) // the closest object that intersects with the ray is a sphere
             {
                 // the closest object that intersects with the ray is a sphere
                 // and we use scene.spheres[closestSphere] to retrieve the data
+                // add L_a
+                // for each light sources add L_d and L_s
+                parser::Vec3f temp = L_a(scene.spheres[closestSphere].material_id, scene);
+                image[i++] = temp.x;
+                image[i++] = temp.y;
+                image[i++] = temp.z;
+                
             }
             else
             {
-                /* background color */
+                parser::Vec3f temp = scene.background_color;
+                image[i++] = temp.x;
+                image[i++] = temp.y;
+                image[i++] = temp.z;
             }
             
             /*int colIdx = x / columnWidth;
