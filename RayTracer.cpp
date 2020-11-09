@@ -2,6 +2,7 @@
 #include "parser.h"
 #include "ppm.h"
 #include <math.h>
+
 #define ABS(a) ((a)>0?(a):-1*(a))
 #define EPSILON 0.000000001
 
@@ -47,7 +48,10 @@ parser::Vec3f crossProduct(parser::Vec3f a, parser::Vec3f b)
 // i*i = 1, i*j = 0, i*k = 0
 double dotProduct(parser::Vec3f a, parser::Vec3f b)
 {
-    return a.x*b.x+a.y*b.y+a.z*b.z;
+    cout << a.x << ", " << a.y << ", " << a.z << endl;
+    cout << b.x << ", " << b.y << ", " << b.z << endl;
+    cout << a.x*b.x << ", " << a.y*b.y << ", " << a.z*b.z << endl;
+    return a.x*b.x + a.y*b.y + a.z*b.z;
 }
 
 // length square function //?
@@ -59,7 +63,7 @@ double length2(parser::Vec3f a)
 // length function
 double length(parser::Vec3f a)
 {
-    return sqrt(a.x*a.x+a.y*a.y*+a.z*a.z);
+    return sqrt((a.x*a.x)+(a.y*a.y)+(a.z*a.z));
 }
 
 // normalize function
@@ -80,13 +84,16 @@ parser::Vec3f normalize(parser::Vec3f v)
 parser::Vec3i clamb(parser::Vec3f colors){
 
     if(colors.x > 255){ colors.x = 255; }
-    else { colors.x = (int) colors.x; }
+    else if(colors.x < 0) { colors.x = 0; }
+    else { colors.x = (int) round(colors.x); }
 
     if(colors.y > 255){ colors.y = 255; }
-    else { colors.y = (int) colors.y; }
+    else if(colors.y < 0) { colors.y = 0; }
+    else { colors.y = (int) round(colors.y); }
 
-     if(colors.z > 255){ colors.z = 255; }
-    else { colors.z = (int) colors.z; }
+    if(colors.z > 255){ colors.z = 255; }
+    else if(colors.z < 0) { colors.z = 0; }
+    else { colors.z = (int) round(colors.z); }
 
 }
 
@@ -120,6 +127,8 @@ parser::Vec3f elementMult(parser::Vec3f first, parser::Vec3f second){
     result.x = first.x * second.x;
     result.y = first.y * second.y;
     result.z = first.z * second.z;
+
+    return result;
 }
 // distance between two vectors
 double distance(parser::Vec3f a, parser::Vec3f b)
@@ -378,31 +387,13 @@ int main(int argc, char* argv[])
                                                                             .z -> we can reach each vertex coordinate
      ****
     ****/
-    /* Testing begins */
-    parser::Vec3f v1, v2;
-    v1.x = 3; v1.y = -3; v1.z = 1;
-    v2.x = 4; v2.y = 9; v2.z = 2;
-    parser::Vec3f result = crossProduct(v1,v2);
-    double res = dotProduct(v1,v2);
-    std::cout << "crosproduct result = (" << result.x <<", " << result.y << ", " << result.z << ")" << std::endl;
-    std::cout << "dotproduct result = " << res << std::endl;
 
-
-
-
-
-
-
-
-
-    /* Testing ends */
     // The code below creates a test pattern and writes
     // it to a PPM file to demonstrate the usage of the
     // ppm_write function.
     //
     // Normally, you would be running your ray tracing
     // code here to produce the desired image.
-    /*
     const RGB BAR_COLOR[8] =
     {
         { 255, 255, 255 },  // 100% White
@@ -476,6 +467,6 @@ int main(int argc, char* argv[])
         }
     }
 
-    write_ppm("test.ppm", image, width, height);*/
+    write_ppm("test.ppm", image, width, height);
 
 }
