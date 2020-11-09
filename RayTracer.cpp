@@ -1,7 +1,7 @@
 #include <iostream>
 #include "parser.h"
 #include "ppm.h"
-
+#include <math.h>
 #define ABS(a) ((a)>0?(a):-1*(a))
 #define EPSILON 0.000000001
 
@@ -13,9 +13,9 @@ class Ray
     // represented like r(t) = e + dt 
 public:
     // coordinates of the first vector (e)
-    parser::Vec3f origin;
+    parser::Vec3f a;
     // coordinates of the second vector (d)
-    parser::Vec3f direction;
+    parser::Vec3f b;
 };
 
 struct color{
@@ -51,15 +51,15 @@ double dotProduct(parser::Vec3f a, parser::Vec3f b)
 }
 
 // length square function //?
-double length2(parser::Vec3 a)
+double length2(parser::Vec3f a)
 {
     return (a.x*a.x+a.y*a.y+a.z*a.z);
 }
 
 // length function
-double length(parser::Vec3 a)
+double length(parser::Vec3f a)
 {
-    return sqrt(a.x*a.x+a.y*a.y*+a.z*a.z)
+    return sqrt(a.x*a.x+a.y*a.y*+a.z*a.z);
 }
 
 // normalize function
@@ -91,7 +91,7 @@ parser::Vec3i clamb(parser::Vec3f colors){
 }
 
 // add function
-parser::Vec3f add(parser::Vec3 a, parser::Vec3 b)
+parser::Vec3f add(parser::Vec3f a, parser::Vec3f b)
 {
     parser::Vec3f tmp;
     tmp.x = a.x+b.x;
@@ -172,12 +172,12 @@ Ray generateRay(int i, int j, parser::Camera cam)
     sv = (j + 0.5) * ((t - b) / height);
     
     cam_u = crossProduct(cam.up, mult(cam.gaze, -1));
-    m = add(cam.position, dotProduct(cam.gaze, cam.near_distance)); //m = q+ (-w + d) --> intersection point of image plane and gaze vector
+    m = add(cam.position, mult(cam.gaze, cam.near_distance)); //m = q+ (-w + d) --> intersection point of image plane and gaze vector
     q = add(cam.position, add(mult(cam_u, l), mult(cam.up, t)));
-    s = add(q, add(mult(cam_u, su) + mult(cam.up, sv)));
+    s = add(q, add(mult(cam_u, su), mult(cam.up, sv)));
 
-    tmp.origin = cam.position;
-    tmp.direction = add(s, mult(cam.position,-1)) // a substract method can be written.
+    tmp.a = cam.position;
+    tmp.b = add(s, mult(cam.position,-1)); // a substract method can be written.
                                                     //tmp.direction = s - e where e = cam.position
 
 }
@@ -313,13 +313,13 @@ parser::Vec3f E_i(parser::Vec3f Intensity, parser::Vec3f w_i){
 }
 
 //compute ambient shading ---> L_a = k_a * I_a
-parser::Vec3f L_a(int obj_id){
+parser::Vec3f L_a(int obj_id, parser::Scene scene){
 
     parser::Vec3f result_La;
 
-    parser::Vec3f k_a = Scene.materials[obj_id - 1].ambient; 
+    parser::Vec3f k_a = scene.materials[obj_id - 1].ambient; 
 
-    parser::Vec3f I_a = Scene.ambient_light;
+    parser::Vec3f I_a = scene.ambient_light;
 
     result_La = elementMult(k_a, I_a);
 
@@ -328,44 +328,40 @@ parser::Vec3f L_a(int obj_id){
 }
 
 //compute diffuse shading---> L_d = k_d * costheta * E_i and costheta = max(0, w_i * n)
-parser::Vec3f L_d(parser::Vec3f w_i, parser::Vec3f E_i, parser::Vec3f n, int obj_id){
+parser::Vec3f L_d(parser::Scene scene, parser::Vec3f w_i, parser::Vec3f E_i, parser::Vec3f n, int obj_id){
 
     parser::Vec3f result_Ld;
 
-    float cos_theta = max(0, dotProduct(w_i, n));
+    double cos_theta = max((double) 0, dotProduct(w_i, n));
 
-    parser::Vec3f k_d = Scene.materials[obj_id - 1].diffuse; 
-
-    result_Ld = mult((elementMult(k_d, E_i), cos_theta));  /// ???
+    parser::Vec3f k_d = scene.materials[obj_id - 1].diffuse; 
+    result_Ld = mult((elementMult(k_d, E_i)), cos_theta); 
 
     return result_Ld;
 
 }
 
 //compute specular shading --> L_s = k_s*(cosalpha)^p * E_i
-parser::Vec3f L_s(parser::Vec3f w_i, parser::Vec3f w_o, parser::Vec3f E_i, parser::Vec3f n, int obj_id){
+parser::Vec3f L_s(parser::Scene scene, parser::Vec3f w_i, parser::Vec3f w_o, parser::Vec3f E_i, parser::Vec3f n, int obj_id){
 
     parser::Vec3f result_Ls;
 
     parser::Vec3f halfVector;
 
+    parser::Vec3f k_s = scene.materials[obj_id - 1].diffuse;
     float cos_alpha;
 
-    float phong = Scene.materials[obj_id - 1].phong_exponent;
+    float phong = scene.materials[obj_id - 1].phong_exponent;
 
     halfVector = normalize(add(w_i, w_o));
 
-    cos_alpha = max(0, dotProduct(n, halfVector));
+    cos_alpha = max((double) 0, dotProduct(n, halfVector));
 
-    result_Ls = mult(elementMult(k_s, E_i), power(cos_alpha, phong));
+    result_Ls = mult(elementMult(k_s, E_i), (double) pow(cos_alpha, phong));
 
     return result_Ls;
 
 }
-
-
-
-
 
 int main(int argc, char* argv[])
 {
@@ -382,14 +378,31 @@ int main(int argc, char* argv[])
                                                                             .z -> we can reach each vertex coordinate
      ****
     ****/
+    /* Testing begins */
+    parser::Vec3f v1, v2;
+    v1.x = 3; v1.y = -3; v1.z = 1;
+    v2.x = 4; v2.y = 9; v2.z = 2;
+    parser::Vec3f result = crossProduct(v1,v2);
+    double res = dotProduct(v1,v2);
+    std::cout << "crosproduct result = (" << result.x <<", " << result.y << ", " << result.z << ")" << std::endl;
+    std::cout << "dotproduct result = " << res << std::endl;
 
+
+
+
+
+
+
+
+
+    /* Testing ends */
     // The code below creates a test pattern and writes
     // it to a PPM file to demonstrate the usage of the
     // ppm_write function.
     //
     // Normally, you would be running your ray tracing
     // code here to produce the desired image.
-
+    /*
     const RGB BAR_COLOR[8] =
     {
         { 255, 255, 255 },  // 100% White
@@ -463,6 +476,6 @@ int main(int argc, char* argv[])
         }
     }
 
-    write_ppm("test.ppm", image, width, height);
+    write_ppm("test.ppm", image, width, height);*/
 
 }
