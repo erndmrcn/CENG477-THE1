@@ -371,27 +371,8 @@ parser::Vec3f L_s(parser::Scene scene, parser::Vec3f w_i, parser::Vec3f w_o, par
     return result_Ls;
 }
 
-class Intesect
-{
-    public:
-        vector<parser::Sphere> sphere;
-        vector<parser::Triangle> triangle;
-        vector<parser::Mesh> mesh;
-        vector<Ray> sphere_ray;
-        vector<Ray> triangle_ray;
-        vector<Ray> mesh_ray;
-}
-
 void produce_image(parser::Scene scene, int width, int height, unsigned char* image)
 {
-    Intesect obj;
-                /*  obj.mesh -> to store intersected meshes;
-                    obj.sphere -> to store intersected spheres;
-                    obj.triangle -> to store intersected triangles;
-                    obj.mesh_ray ->
-                    obj.triangle_ray ->
-                    obj.sphere_ray -> to store rays that intersect the objects;
-                */
     int i = 0;
     for (int y = 0; y < height; ++y)
     {
@@ -406,52 +387,88 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
 
             Ray r; // ray
             double tmin = __DBL_MAX__;
-            int closestObj = -1;
-
+            int closestTri, closestSphere, closestMesh, closestMeshTri;
+            closestTri = -1;
+            closestSphere = -1;
+            closestMesh = -1;
+            closestMeshTri = -1;
             r = generateRay(x,y, scene.cameras[0]);
 
             // check triangles
             for(int k = 0; k<scene.triangles.size(); k++)
             {
-
+                double t;
+                t = intersectTriangle(r, scene.triangles[k], scene.vertex_data);
+                if(t>=1)
+                {
+                    if(t<tmin)
+                    {
+                        tmin = t;
+                        closestTri = k;
+                    }
+                }
             }
             // check meshes
             for(int k = 0; k<scene.meshes.size(); k++)
             {
                 for(int q = 0; k<scene.meshes[k].faces.size(); q++)
                 {    // each face is a triangle
+                    double t;
+                    t = intersectTriangle(r, scene.meshes[k].faces[q], scene.vertex_data);
+                    if(t>=1)
+                    {
+                        if(t<tmin)
+                        {
+                            tmin = t;
+                            closestMesh = k;
+                            closestMeshTri = q;
+                            closestTri = -1;
+                        }
+                    }
                 }
             }
             // check spheres
             for(int k = 0; k<scene.spheres.size(); k++)
             {
                 double t;
-                vector<parser::Sphere> obj;
                 t = intersectSphere(r, scene.spheres[k], scene.vertex_data);
-                int check = 0;
                 if(t<tmin)
                 {
                     tmin = t;
-                    obj = (scene.spheres[k]);
-                    check = 1;
-                }
-                if(check)
-                {
-                    /*for(int l = 0; l<scene.point_lights.size(); l++)
-                    {
-                        // compute the shadows ray s from x to I
-                        //for each object p
-                            // if s intersects p before the light source
-                                // continue
-                        // picek color += L_d + L_s
-                    }*/
-                }
-                else
-                {
-                    // pixel color = background color
+                    closestSphere = k;
+                    closestMesh = -1;
+                    closestMeshTri = -1;
+                    closestTri = -1;
                 }
             }    
-
+            if(closestTri != -1) // the closest object that intersects with the ray is a triangle
+            {
+                // the closest object that intersects with the ray is a triangle
+                // and we use scene.triangles[closestTri] to retrieve the data
+                /*for(int l = 0; l<scene.point_lights.size(); l++)
+                {
+                    // compute the shadows ray s from x to I
+                    //for each object p
+                        // if s intersects p before the light source
+                            // continue
+                    // pixel color += L_d + L_s
+                }*/
+            }
+            else if(closestMeshTri != -1 && closestMesh != -1) 
+            {
+                // the closest object that intersects with the ray is a mesh
+                // and we use scene.meshes[closestMesh].triangles[closestMeshTri] to retrieve the data
+            }
+            else if(closestSphere != -1) // the closest object that intersects with the ray is a sphere
+            {
+                // the closest object that intersects with the ray is a sphere
+                // and we use scene.spheres[closestSphere] to retrieve the data
+            }
+            else
+            {
+                /* background color */
+            }
+            
             /*int colIdx = x / columnWidth;
             image[i++] = BAR_COLOR[colIdx][0];
             image[i++] = BAR_COLOR[colIdx][1];
