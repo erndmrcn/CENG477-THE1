@@ -371,6 +371,95 @@ parser::Vec3f L_s(parser::Scene scene, parser::Vec3f w_i, parser::Vec3f w_o, par
     return result_Ls;
 }
 
+class Intesect
+{
+    public:
+        vector<parser::Sphere> sphere;
+        vector<parser::Triangle> triangle;
+        vector<parser::Mesh> mesh;
+        vector<Ray> sphere_ray;
+        vector<Ray> triangle_ray;
+        vector<Ray> mesh_ray;
+}
+
+void produce_image(parser::Scene scene, int width, int height, unsigned char* image)
+{
+    Intesect obj;
+                /*  obj.mesh -> to store intersected meshes;
+                    obj.sphere -> to store intersected spheres;
+                    obj.triangle -> to store intersected triangles;
+                    obj.mesh_ray ->
+                    obj.triangle_ray ->
+                    obj.sphere_ray -> to store rays that intersect the objects;
+                */
+    int i = 0;
+    for (int y = 0; y < height; ++y)
+    {
+        for (int x = 0; x < width; ++x)
+        {
+            // for sphere
+            // for mesh
+            // for triangle
+            // different loops for each other
+            // hold intersecting point and if it is the first intersection point use light/shadow
+            // consider multiple light sources
+
+            Ray r; // ray
+            double tmin = __DBL_MAX__;
+            int closestObj = -1;
+
+            r = generateRay(x,y, scene.cameras[0]);
+
+            // check triangles
+            for(int k = 0; k<scene.triangles.size(); k++)
+            {
+
+            }
+            // check meshes
+            for(int k = 0; k<scene.meshes.size(); k++)
+            {
+                for(int q = 0; k<scene.meshes[k].faces.size(); q++)
+                {    // each face is a triangle
+                }
+            }
+            // check spheres
+            for(int k = 0; k<scene.spheres.size(); k++)
+            {
+                double t;
+                vector<parser::Sphere> obj;
+                t = intersectSphere(r, scene.spheres[k], scene.vertex_data);
+                int check = 0;
+                if(t<tmin)
+                {
+                    tmin = t;
+                    obj = (scene.spheres[k]);
+                    check = 1;
+                }
+                if(check)
+                {
+                    /*for(int l = 0; l<scene.point_lights.size(); l++)
+                    {
+                        // compute the shadows ray s from x to I
+                        //for each object p
+                            // if s intersects p before the light source
+                                // continue
+                        // picek color += L_d + L_s
+                    }*/
+                }
+                else
+                {
+                    // pixel color = background color
+                }
+            }    
+
+            /*int colIdx = x / columnWidth;
+            image[i++] = BAR_COLOR[colIdx][0];
+            image[i++] = BAR_COLOR[colIdx][1];
+            image[i++] = BAR_COLOR[colIdx][2];*/
+        }
+    }
+    write_ppm("test.ppm", image, width, height);
+}
 int main(int argc, char* argv[])
 {
     // Sample usage for reading an XML scene file
@@ -408,64 +497,7 @@ int main(int argc, char* argv[])
     int width = 640, height = 480;
     int columnWidth = width / 8;
 
-    unsigned char* image = new unsigned char [width * height * 3];
+    unsigned char* image = new unsigned char [width * height * 3]
 
-    int i = 0;
-    for (int y = 0; y < height; ++y)
-    {
-        for (int x = 0; x < width; ++x)
-        {
-            // for sphere
-            // for mesh
-            // for triangle
-            // different loops for each other
-            // hold intersecting point and if it is the first intersection point use light/shadow
-            // consider multiple light sources  
-            // implement shadow function
-            // recursive for reflection
-            Ray r; // ray
-            double tmin = __DBL_MAX__;
-            int closestObj = -1;
-
-            r = generateRay(x,y, scene.cameras[0]);
-
-            // check spheres
-            for(int k = 0; k<scene.spheres.size(); k++)
-            {
-                double t;
-                parser::Sphere obj;
-                t = intersectSphere(r, scene.spheres[k], scene.vertex_data);
-                int check = 0;
-                if(t<tmin)
-                {
-                    tmin = t;
-                    obj = (scene.spheres[k]);
-                    check = 1;
-                }
-                if(check)
-                {
-                    /*for(int l = 0; l<scene.point_lights.size(); l++)
-                    {
-                        // compute the shadows ray s from x to I
-                        //for each object p
-                            // if s intersects p before the light source
-                                // continue
-                        // picek color += L_d + L_s
-                    }*/
-                }
-                else
-                {
-                    // pixel color = background color
-                }
-            }    
-
-            /*int colIdx = x / columnWidth;
-            image[i++] = BAR_COLOR[colIdx][0];
-            image[i++] = BAR_COLOR[colIdx][1];
-            image[i++] = BAR_COLOR[colIdx][2];*/
-        }
-    }
-
-    write_ppm("test.ppm", image, width, height);
 
 }
