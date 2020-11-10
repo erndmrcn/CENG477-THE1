@@ -67,15 +67,17 @@ parser::Vec3f normalize(parser::Vec3f v)
 }
 // compute clambed vector ---- should we check colors.x < 0 condition??
 parser::Vec3i clamb(parser::Vec3f colors){
-    if(colors.x > 255){ colors.x = 255; }
-    else if(colors.x < 0) { colors.x = 0; }
-    else { colors.x = (int) round(colors.x); }
-    if(colors.y > 255){ colors.y = 255; }
-    else if(colors.y < 0) { colors.y = 0; }
-    else { colors.y = (int) round(colors.y); }
-    if(colors.z > 255){ colors.z = 255; }
-    else if(colors.z < 0) { colors.z = 0; }
-    else { colors.z = (int) round(colors.z); }
+    parser::Vec3i clr;
+    if(colors.x > 255){ clr.x = 255; }
+    else if(colors.x < 0) { clr.x = 0; }
+    else { clr.x = (int) round(colors.x); }
+    if(colors.y > 255){ clr.y = 255; }
+    else if(colors.y < 0) { clr.y = 0; }
+    else { clr.y = (int) round(colors.y); }
+    if(colors.z > 255){ clr.z = 255; }
+    else if(colors.z < 0) { clr.z = 0; }
+    else { clr.z = (int) round(colors.z); }
+    return clr;
 }
 // add function
 parser::Vec3f add(parser::Vec3f a, parser::Vec3f b)
@@ -193,17 +195,16 @@ Ray generateRay(int i, int j, parser::Camera cam)
     double t = cam.near_plane.w;
     int width = cam.image_width;
     int height = cam.image_height;
-    su = (i + 0.5) * ((r - l) / width);
-    sv = (j + 0.5) * ((t - b) / height);
-    
-    cam_u = crossProduct(cam.up, mult(cam.gaze, -1));
-    m = add(cam.position, mult(cam.gaze, cam.near_distance)); //m = q+ (-w + d) --> intersection point of image plane and gaze vector
-    q = add(cam.position, add(mult(cam_u, l), mult(cam.up, t)));
-    s = add(q, add(mult(cam_u, su), mult(cam.up, sv)));
-    tmp.a = cam.position;
-    tmp.b = add(s, mult(cam.position,-1)); // a substract method can be written.
-                                                    //tmp.direction = s - e where e = cam.position
 
+    su = ((i + 0.5) * ((r - l) / width));
+    sv = ((j + 0.5) * ((t - b) / height));
+
+    cam_u = crossProduct(cam.up, cam.gaze);
+    m = add(cam.position, mult(cam.gaze, (-1)*cam.near_distance)); //m = q+ (-w + d) --> intersection point of image plane and gaze vector
+    q = add(m, add(mult(cam_u, l), mult(cam.up, t)));
+    s = add(q, add(mult(cam_u, su), mult(cam.up, (-1)*sv)));
+    tmp.a = cam.position; 
+    tmp.b = s; 
     return tmp;
 }
 // interseciton of sphere, returns t value
@@ -218,15 +219,13 @@ double intersectSphere(Ray r, parser::Sphere s, vector<parser::Vec3f> vertex)
     int i;
     scenter = vertex[s.center_vertex_id];
     sradius = s.radius;
-    C = (r.a.x-scenter.x)*(r.a.x-scenter.x) 
-        + (r.a.y - scenter.y)*(r.a.y - scenter.y) 
-        + (r.a.z - scenter.z)*(r.a.z - scenter.z)
-        - sradius*sradius;
-    B = 2*r.b.x*(r.a.x - scenter.x)
-      + 2*r.b.y*(r.a.y - scenter.y)
-      + 2*r.b.z*(r.a.z - scenter.z);
+    C = (r.a.x-scenter.x)*(r.a.x-scenter.x) + (r.a.y - scenter.y)*(r.a.y - scenter.y) + (r.a.z - scenter.z)*(r.a.z - scenter.z) - sradius*sradius;
+
+    B = 2*r.b.x*(r.a.x - scenter.x) + 2*r.b.y*(r.a.y - scenter.y) + 2*r.b.z*(r.a.z - scenter.z);
+
     A = r.b.x*r.b.x + r.b.y*r.b.y + r.b.z*r.b.z;
     delta = (B*B) - (4*A*C);
+
     if(delta<0-EPSILON) { return -1;} // no solution for quadratic eqn.
     else if(delta <= 0+EPSILON && delta>=0-EPSILON) // has one distinct root
     {
@@ -445,6 +444,7 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                     tri.indices.v2_id = scene.meshes[k].faces[q].v2_id;
                     tri.material_id = scene.meshes[k].material_id;
                     t = intersectTriangle(r, tri, scene.vertex_data);
+
                     if(t>=scene.cameras[0].near_distance-EPSILON && t<=scene.cameras[0].near_distance+EPSILON)
                     {
                         if(t<tmin)
