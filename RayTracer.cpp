@@ -226,9 +226,9 @@ double intersectSphere(Ray r, parser::Sphere s, vector<parser::Vec3f> vertex)
       + 2*r.b.y*(r.a.y - scenter.y)
       + 2*r.b.z*(r.a.z - scenter.z);
     A = r.b.x*r.b.x + r.b.y*r.b.y + r.b.z*r.b.z;
-    delta = B*B -4*A*C;
-    if(delta<0) return -1; // no solution for quadratic eqn.
-    else if(delta == 0) // has one distinct root
+    delta = (B*B) - (4*A*C);
+    if(delta<0-EPSILON) { return -1;} // no solution for quadratic eqn.
+    else if(delta <= 0+EPSILON && delta>=0-EPSILON) // has one distinct root
     {
         t = -B / (2*A);
     } 
@@ -297,7 +297,7 @@ double intersectTriangle(Ray r, parser::Triangle tri, vector<parser::Vec3f> vert
     
     t = -(f*akmjb+e*jcmal+d*blmkc)/M;
     
-    if (t<1.0) return -1;
+    if (t<1.0 + EPSILON) return -1;
     
     gamma = (i*akmjb+h*jcmal+g*blmkc)/M;
     
@@ -422,7 +422,9 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                     {
                         tmin = t;
                         closestTri = k; //closest_sphere = -1 ?? olması da gerekmiyor mu burada?
-
+                        closestSphere = -1;
+                        closestMesh = -1;
+                        closestMeshTri = -1;
                         intersectionPoint = mult(r.b, t);
                         intersectionPoint = add(intersectionPoint, r.a);
                         n = find_normal_t(scene, k);
@@ -434,11 +436,16 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
             // check meshes
             for(int k = 0; k<scene.meshes.size(); k++)
             {
-                for(int q = 0; k<scene.meshes[k].faces.size(); q++)
+                for(int q = 0; q<scene.meshes[k].faces.size(); q++)
                 {    // each face is a triangle
                     double t;
-                    t = intersectTriangle(r, scene.meshes[k].faces[q], scene.vertex_data);
-                    if(t>=1)
+                    parser::Triangle tri;
+                    tri.indices.v0_id = scene.meshes[k].faces[q].v0_id;
+                    tri.indices.v1_id = scene.meshes[k].faces[q].v1_id;
+                    tri.indices.v2_id = scene.meshes[k].faces[q].v2_id;
+                    tri.material_id = scene.meshes[k].material_id;
+                    t = intersectTriangle(r, tri, scene.vertex_data);
+                    if(t>=scene.cameras[0].near_distance-EPSILON && t<=scene.cameras[0].near_distance+EPSILON)
                     {
                         if(t<tmin)
                         {
@@ -446,11 +453,9 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                             closestMesh = k;
                             closestMeshTri = q;
                             closestTri = -1;
-
                             intersectionPoint = mult(r.b, t);
                             intersectionPoint = add(intersectionPoint, r.a);
                             n = find_normal_m(scene, k, q);
-
                         }
                     }
                 }
@@ -460,20 +465,22 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
             {
                 double t;
                 t = intersectSphere(r, scene.spheres[k], scene.vertex_data);
-                if(t<tmin)
+                if(t>=1)
                 {
-                    tmin = t;
-                    closestSphere = k;
-                    closestMesh = -1;
-                    closestMeshTri = -1;
-                    closestTri = -1;
+                    if(t<tmin)
+                    {
+                        tmin = t;
+                        closestSphere = k;
+                        closestMesh = -1;
+                        closestMeshTri = -1;
+                        closestTri = -1;
 
-                    parser::Vec3f center = scene.vertex_data[scene.spheres[k].center_vertex_id - 1];
+                        parser::Vec3f center = scene.vertex_data[scene.spheres[k].center_vertex_id - 1];
 
-                    intersectionPoint = mult(r.b, t);
-                    intersectionPoint = add(intersectionPoint, r.a);
-                    n = substract(center, intersectionPoint);
-                    
+                        intersectionPoint = mult(r.b, t);
+                        intersectionPoint = add(intersectionPoint, r.a);
+                        n = substract(center, intersectionPoint);       
+                    }
                 }
             }    
             if(closestTri != -1) // the closest object that intersects with the ray is a triangle
@@ -491,9 +498,9 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                 // add L_a
                 // for each light sources add L_d and L_s
                 parser::Vec3f shading = L_a(scene.triangles[closestTri].material_id, scene); 
-                //image[i++] = temp.x;
-                //image[i++] = temp.y;
-                //image[i++] = temp.z;
+                image[i++] = shading.x;
+                image[i++] = shading.y;
+                image[i++] = shading.z;
 
                 for(int l = 0; l < scene.point_lights.size(); l++){
 
@@ -513,13 +520,12 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                         parser::Vec3f specular_s = L_s(scene, w_i, w_o, E, n, scene.triangles[closestTri].material_id);
                         //L_m();
 
-                        shading = add(shading, diffuse_s);
-                        shading = add(shading, specular_s);
+                        //shading = add(shading, diffuse_s);
+                        //shading = add(shading, specular_s);
                         //shading = add(shading, mirror_s);
-
-                        image[i++] = shading.x;
-                        image[i++] = shading.y;
-                        image[i++] = shading.z;
+                        image[i-3] += diffuse_s.x + specular_s.x;
+                        image[i-2] += diffuse_s.y + specular_s.y;
+                        image[i-1] += diffuse_s.z + specular_s.z;
                     }
                 }
 
@@ -532,7 +538,9 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                 // add L_a
                 // for each light sources add L_d and L_s
                 parser::Vec3f shading = L_a(scene.meshes[closestMesh].material_id , scene); 
-
+                image[i++] = shading.x;
+                image[i++] = shading.y;
+                image[i++] = shading.z;
                 for(int l = 0; l < scene.point_lights.size(); l++){
 
                     w_i = substract(scene.point_lights[l].position, intersectionPoint);
@@ -551,13 +559,13 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                         parser::Vec3f specular_s = L_s(scene, w_i, w_o, E, n, scene.meshes[closestMesh].material_id);
                         //L_m();
 
-                        shading = add(shading, diffuse_s);
-                        shading = add(shading, specular_s);
+                        //shading = add(shading, diffuse_s);
+                        //shading = add(shading, specular_s);
                         //shading = add(shading, mirror_s);
 
-                        image[i++] = shading.x;
-                        image[i++] = shading.y;
-                        image[i++] = shading.z;
+                        image[i-3] = diffuse_s.x + specular_s.x;
+                        image[i-2] = diffuse_s.y + specular_s.y;
+                        image[i-1] = diffuse_s.z + specular_s.z;
                     }
                 }
                 
@@ -570,7 +578,9 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                 // add L_a
                 // for each light sources add L_d and L_s
                 parser::Vec3f shading = L_a(scene.spheres[closestSphere].material_id, scene);
-
+                image[i++] = shading.x;
+                image[i++] = shading.y;
+                image[i++] = shading.z;
                 for(int l = 0; l < scene.point_lights.size(); l++){
 
                     w_i = substract(scene.point_lights[l].position, intersectionPoint);
@@ -589,13 +599,13 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                         parser::Vec3f specular_s = L_s(scene, w_i, w_o, E, n, scene.triangles[closestSphere].material_id);
                         //L_m();
 
-                        shading = add(shading, diffuse_s);
-                        shading = add(shading, specular_s);
+                        //shading = add(shading, diffuse_s);
+                        //shading = add(shading, specular_s);
                         //shading = add(shading, mirror_s);
-
-                        image[i++] = shading.x;
-                        image[i++] = shading.y;
-                        image[i++] = shading.z;
+                        image[i-3] = diffuse_s.x + specular_s.x;
+                        image[i-2] = diffuse_s.y + specular_s.y;
+                        image[i-1] = diffuse_s.z + specular_s.z;
+                        
                     }
                 }
 
@@ -652,4 +662,5 @@ int main(int argc, char* argv[])
     int width = 640, height = 480;
     int columnWidth = width / 8;
     unsigned char* image = new unsigned char [width * height * 3];
+    produce_image(scene, width, height, image);
 }
