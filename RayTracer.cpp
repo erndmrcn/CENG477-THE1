@@ -186,6 +186,8 @@ Ray generateRay(int i, int j, parser::Camera cam)
     // for each camera different rays will be created
     // ...
     //alternative code according to my comments, we can rearrenge two code then.
+    
+    
     double su, sv;
     parser::Vec3f s, cam_u, q, m; //cam_u is the right dir. vector of camre. we compute u = v x w 
                                //q is the top-left corner coordinate vector of image
@@ -195,14 +197,17 @@ Ray generateRay(int i, int j, parser::Camera cam)
     double t = cam.near_plane.w;
     int width = cam.image_width;
     int height = cam.image_height;
+    
 
     su = ((i + 0.5) * ((r - l) / width));
     sv = ((j + 0.5) * ((t - b) / height));
 
-    cam_u = crossProduct(cam.up, cam.gaze);
-    m = add(cam.position, mult(cam.gaze, (-1)*cam.near_distance)); //m = q+ (-w + d) --> intersection point of image plane and gaze vector
+    cam_u = crossProduct(cam.up, mult(cam.gaze, -1));
+
+    m = add(cam.position, mult(cam.gaze, cam.near_distance)); //m = q+ (-w + d) --> intersection point of image plane and gaze vector
     q = add(m, add(mult(cam_u, l), mult(cam.up, t)));
     s = add(q, add(mult(cam_u, su), mult(cam.up, (-1)*sv)));
+
     tmp.a = cam.position; 
     tmp.b = s; 
     return tmp;
@@ -246,22 +251,23 @@ double intersectSphere(Ray r, parser::Sphere s, vector<parser::Vec3f> vertex)
         if(t1>=1.0) t = t1;
         else t = -1;
     }
+
     return t;
 }
+
 // intersection of triangle, returns t value
 double intersectTriangle(Ray r, parser::Triangle tri, vector<parser::Vec3f> vertex)
 {
     // we'll use barycentric coordinate system
     // solve for t & beta & gamma 
     // by using matrices, determinant & Cramer rule
-    //    |g a d|   |t    |   |j|
-    //    |h b e| * |beta | = |k|
-    //    |i c f|   |gamma|   |l|
+    //    |a d g|   |beta   |   |j|
+    //    |b e h| * |gamma  | = |k|
+    //    |c f i|   |t      |   |l|
     //    a -> v1, b -> v2, z -> v3
     double  a,b,c,d,e,f,g,h,i,j,k,l;
     double beta,gamma,t;
     
-    double eimhf,gfmdi,dhmeg,akmjb,jcmal,blmkc;
     double M;
     
     double dd;
@@ -284,29 +290,33 @@ double intersectTriangle(Ray r, parser::Triangle tri, vector<parser::Vec3f> vert
     j = ma.x-r.a.x;
     k = ma.y-r.a.y;
     l = ma.z-r.a.z;
+
+    M = (a*(e*i - f*h)) -
+        (d*(b*i - h*c)) +
+        (g*(b*f - e*c));
+
     
-    eimhf = e*i-h*f;
-    gfmdi = g*f-d*i;
-    dhmeg = d*h-e*g;
-    akmjb = a*k-j*b;
-    jcmal = j*c-a*l;
-    blmkc = b*l-k*c;
-    M = a*eimhf+b*gfmdi+c*dhmeg;
+    t = ((a*(e*l - f*k)) -
+        (d*(b*l - k*c) )+
+       (j*(b*f - e*c)))/(M);
+
+
     if (M==0) return -1;
     
-    t = -(f*akmjb+e*jcmal+d*blmkc)/M;
     
-    if (t<1.0 + EPSILON) return -1;
+    if (t<1.0) return -1;
     
-    gamma = (i*akmjb+h*jcmal+g*blmkc)/M;
+    gamma = ((a*(k*i - l*h)) - (j*(b*i -c*h)) + (g*(b*l - c*k)) )/M;
     
     if (gamma<0 || gamma>1) return -1;
     
-    beta = (j*eimhf+k*gfmdi+l*dhmeg)/M;
+    beta = ((j*(e*i - f*h)) - (d*(k*i -l*h)) + (g*(k*f - e*l)) )/M;
     
     if (beta<0 || beta>(1-gamma)) return -1;
     
     return t;
+    
+    
 }
 //compute irradience E_i --> E_i = I / r^2 where r = |wi| and I is intensity
 parser::Vec3f E_i(parser::Vec3f Intensity, parser::Vec3f w_i){
@@ -386,9 +396,9 @@ bool shadow(parser::Scene scene, parser::Vec3f w_i, parser::Vec3f intersection, 
 void produce_image(parser::Scene scene, int width, int height, unsigned char* image)
 {
     int i = 0;
-    for (int y = 0; y < height; ++y)
+    for (int x = 0; x < height; ++x)
     {
-        for (int x = 0; x < width; ++x)
+        for (int y = 0; y < width; ++y)
         {
             // for sphere
             // for mesh
@@ -648,17 +658,7 @@ int main(int argc, char* argv[])
     //
     // Normally, you would be running your ray tracing
     // code here to produce the desired image.
-    const RGB BAR_COLOR[8] =
-    {
-        { 255, 255, 255 },  // 100% White
-        { 255, 255,   0 },  // Yellow
-        {   0, 255, 255 },  // Cyan
-        {   0, 255,   0 },  // Green
-        { 255,   0, 255 },  // Magenta
-        { 255,   0,   0 },  // Red
-        {   0,   0, 255 },  // Blue
-        {   0,   0,   0 },  // Black
-    };
+    
     int width = 640, height = 480;
     int columnWidth = width / 8;
     unsigned char* image = new unsigned char [width * height * 3];
