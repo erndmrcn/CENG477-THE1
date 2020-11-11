@@ -207,10 +207,8 @@ Ray generateRay(int i, int j, parser::Camera cam)
     m = add(cam.position, mult(cam.gaze, cam.near_distance)); //m = q+ (-w*d) --> intersection point of image plane and gaze vector
     q = add(m, add(mult(cam_u, l), mult(cam.up, t)));
     s = add(q, add(mult(cam_u, su), mult(cam.up, (-1)*sv)));
-
     tmp.a = cam.position; 
-    tmp.b = s; 
-
+    tmp.b = substract(cam.position,s); 
     return tmp;
 }
 // interseciton of sphere, returns t value
@@ -340,7 +338,7 @@ parser::Vec3f L_d(parser::Scene scene, parser::Vec3f w_i, parser::Vec3f E_i, par
 parser::Vec3f L_s(parser::Scene scene, parser::Vec3f w_i, parser::Vec3f w_o, parser::Vec3f E_i, parser::Vec3f n, int obj_id){
     parser::Vec3f result_Ls;
     parser::Vec3f halfVector;
-    parser::Vec3f k_s = scene.materials[obj_id-1].diffuse;
+    parser::Vec3f k_s = scene.materials[obj_id-1].specular;
     float cos_alpha;
     float phong = scene.materials[obj_id-1].phong_exponent;
     halfVector = normalize(add(w_i, w_o));
