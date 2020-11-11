@@ -315,9 +315,8 @@ double intersectTriangle(Ray r, parser::Triangle tri, vector<parser::Vec3f> vert
     
 }
 //compute irradience E_i --> E_i = I / r^2 where r = |wi| and I is intensity
-parser::Vec3f E_i(parser::Vec3f Intensity, parser::Vec3f w_i){
+parser::Vec3f E_i(parser::Vec3f Intensity, parser::Vec3f w_i, double r){
     parser::Vec3f result_E;
-    float r = length(w_i);
     result_E = mult(Intensity, 1/(r*r));
     return result_E;
 }
@@ -404,9 +403,9 @@ bool shadow(parser::Scene scene, parser::Vec3f w_i, parser::Vec3f intersection, 
 void produce_image(parser::Scene scene, int width, int height, unsigned char* image)
 {
     int i = 0;
-    for (int x = 0; x < width; ++x)
+    for (int y = 0; y < height; ++y)
     {
-        for (int y = 0; y < height; ++y)
+        for (int x = 0; x < width; ++x)
         {
             // for sphere
             // for mesh
@@ -445,7 +444,6 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                         intersectionPoint = mult(r.b, t);
                         intersectionPoint = add(intersectionPoint, r.a);
                         n = find_normal_t(scene, k);
-
                     }
                 }
             }
@@ -496,7 +494,10 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
 
                         intersectionPoint = mult(r.b, t);
                         intersectionPoint = add(intersectionPoint, r.a);
-                        n = substract(center, intersectionPoint);       
+                        n = substract(center, intersectionPoint);
+                        n.x /= scene.spheres[k].radius;
+                        n.y /= scene.spheres[k].radius;
+                        n.z /= scene.spheres[k].radius;       
                     }
                 }
             }    
@@ -521,18 +522,18 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                 image[i++] += shading_int.z;
 
                 for(int l = 0; l < scene.point_lights.size(); l++){
-                    w_i = substract(scene.point_lights[l].position, intersectionPoint);
-                    w_i = normalize(w_i);
+                    w_i = substract(intersectionPoint,scene.point_lights[l].position);
+                    double distance = length(w_i);
                     I = scene.point_lights[l].intensity; 
-                    E = E_i(I, w_i);
-                    w_o= normalize(substract(r.a,intersectionPoint));
+                    E = E_i(I, w_i,distance);
+                    w_o = substract(r.a,intersectionPoint);
 
-                    if(shadow(scene, w_i, intersectionPoint, scene.point_lights[l].position)){ //if there is a shadow
+                    /*if(shadow(scene, w_i, intersectionPoint, scene.point_lights[l].position)){ //if there is a shadow
 
                         continue;
                     }
                     else{
-
+*/
                         parser::Vec3f diffuse_s = L_d(scene, w_i, E, n, scene.triangles[closestTri].material_id);
                         parser::Vec3f specular_s = L_s(scene, w_i, w_o, E, n, scene.triangles[closestTri].material_id);
                         //L_m();
@@ -544,7 +545,7 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                         image[i-3] += ld.x + ls.x;
                         image[i-2] += ld.y + ls.y;
                         image[i-1] += ld.z + ls.z;
-                    }
+                    //}
                 }
 
 
@@ -562,17 +563,17 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                 image[i++] += shading_int.z;
                 for(int l = 0; l < scene.point_lights.size(); l++){
                     w_i = substract(scene.point_lights[l].position, intersectionPoint);
-                    w_i = normalize(w_i);
+                    double distance = length(w_i);
                     I = scene.point_lights[l].intensity; 
-                    E = E_i(I, w_i);
-                    w_o= normalize(substract(r.a,intersectionPoint));
+                    E = E_i(I, w_i,distance);
+                    w_o = substract(r.a,intersectionPoint);
 
-                    if(shadow(scene, w_i, intersectionPoint, scene.point_lights[l].position)){ //if there is a shadow
+                    /*if(shadow(scene, w_i, intersectionPoint, scene.point_lights[l].position)){ //if there is a shadow
 
                         continue;
                     }
                     else{
-
+*/
                         parser::Vec3f diffuse_s = L_d(scene, w_i, E, n, scene.meshes[closestMesh].material_id);
                         parser::Vec3f specular_s = L_s(scene, w_i, w_o, E, n, scene.meshes[closestMesh].material_id);
                         //L_m();
@@ -585,7 +586,7 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                         image[i-3] += ld.x + ls.x;
                         image[i-2] += ld.y + ls.y;
                         image[i-1] += ld.z + ls.z;
-                    }
+                    //}
                 }
                 
 
@@ -603,16 +604,17 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                 image[i++] += shading_int.z;
                 for(int l = 0; l < scene.point_lights.size(); l++){
                     w_i = substract(intersectionPoint, scene.point_lights[l].position);
-                    w_i = normalize(w_i);
+                    double distance = length(w_i);
                     I = scene.point_lights[l].intensity; 
-                    E = E_i(I, w_i);
-                    w_o= normalize(substract(r.a,intersectionPoint));
-
-                    if(shadow(scene, w_i, intersectionPoint, scene.point_lights[l].position)){ //if there is a shadow
+                    E = E_i(I, w_i,distance);
+                    w_o = substract(r.a,intersectionPoint);
+                    w_i = normalize(w_i);
+                    w_o = normalize(w_o);
+                    /*if(shadow(scene, w_i, intersectionPoint, scene.point_lights[l].position)){ //if there is a shadow
 
                         continue;
                     }
-                    else{
+                    else{*/
 
                         parser::Vec3f diffuse_s = L_d(scene, w_i, E, n, scene.triangles[closestSphere].material_id);
                         parser::Vec3f specular_s = L_s(scene, w_i, w_o, E, n, scene.triangles[closestSphere].material_id);
@@ -626,7 +628,7 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                         image[i-2] += ld.y + ls.y;
                         image[i-1] += ld.z + ls.z;
                         
-                    }
+                    //}
                 }
 
             }
