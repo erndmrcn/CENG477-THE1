@@ -20,13 +20,7 @@ struct color{
     int G;
     int B;
 };
-// Cross product of 2 vectors
-// i*i = 0(i), i*j = 1(k), i*k = 1(j)
-// j*j = 0(j), j*i = -1(k), j*k = 1(i)
-// k*k = 0(k), k*i = -1(j), k*j = -1(i)
-// x -> i*i + j*k + k*j
-// y -> j*j + i*k + k*i
-// z -> k*k + i*j + j*i
+
 parser::Vec3f crossProduct(parser::Vec3f a, parser::Vec3f b)
 {
     parser::Vec3f tmp;
@@ -35,13 +29,9 @@ parser::Vec3f crossProduct(parser::Vec3f a, parser::Vec3f b)
     tmp.z = a.x*b.y - a.y*b.x;
     return tmp;
 }
-// Dot product of 2 vectors
-// i*i = 1, i*j = 0, i*k = 0
-double dotProduct(parser::Vec3f a, parser::Vec3f b)//?? neden cout basıyor? test için miyid? yoruma alıyorum, öyleyse sen silersin
+
+double dotProduct(parser::Vec3f a, parser::Vec3f b)
 {
-    //cout << a.x << ", " << a.y << ", " << a.z << endl;
-    //cout << b.x << ", " << b.y << ", " << b.z << endl;
-    //cout << a.x*b.x << ", " << a.y*b.y << ", " << a.z*b.z << endl;
     return a.x*b.x + a.y*b.y + a.z*b.z;
 }
 // length square function //?
@@ -172,22 +162,7 @@ Ray generateRay(int i, int j, parser::Camera cam)
     // ray representation -> r(t) = o + td
     // o-> origin, t->variable
     Ray tmp;
-    // su = (i + 0.5)(r-l)/nx 
-    // r->right, l->left, nx->image width
-    // sv = (j + 0.5)(t-b)/ny
-    // t->top, b->botton, ny->image height
-    // m = e + -w(distance) --- w direction vector
-    // q = m + lu + tv --- u&v are direction vectors
-    // s = q + (su)u -(sv)v --- u&v are direction vectors
-    //h: camera.nearplane gives us the coordinates o image as l,r,b,t. I think nearplane.x = l, .y= r, .z=b and .w = t
-    //also camera.image width&heigh give the resolution. 
-    //so, camera.imagewidth = # of cplumns, nx and 
-    //camera.imageheight = # of rows, ny
-    // for each camera different rays will be created
-    // ...
-    //alternative code according to my comments, we can rearrenge two code then.
-    
-    
+
     double su, sv;
     parser::Vec3f s, cam_u, q, m; //cam_u is the right dir. vector of camre. we compute u = v x w 
                                //q is the top-left corner coordinate vector of image
@@ -255,13 +230,7 @@ double intersectSphere(Ray r, parser::Sphere s, vector<parser::Vec3f> vertex)
 // intersection of triangle, returns t value
 double intersectTriangle(Ray r, parser::Triangle tri, vector<parser::Vec3f> vertex)
 {
-    // we'll use barycentric coordinate system
-    // solve for t & beta & gamma 
-    // by using matrices, determinant & Cramer rule
-    //    |a d g|   |beta   |   |j|
-    //    |b e h| * |gamma  | = |k|
-    //    |c f i|   |t      |   |l|
-    //    a -> v1, b -> v2, z -> v3
+
     double  a,b,c,d,e,f,g,h,i,j,k,l;
     double beta,gamma,t;
     
@@ -309,8 +278,6 @@ double intersectTriangle(Ray r, parser::Triangle tri, vector<parser::Vec3f> vert
     if (beta<0 || beta>(1-gamma)) return -1;
     
     return t;
-    
-    
 }
 //compute irradience E_i --> E_i = I / r^2 where r = |wi| and I is intensity
 parser::Vec3f E_i(parser::Vec3f Intensity, parser::Vec3f w_i, double r){
@@ -362,7 +329,7 @@ bool shadow(parser::Scene scene, parser::Vec3f w_i, parser::Vec3f intersection, 
 
         double temp_t = intersectTriangle(shadow_ray, scene.triangles[i], scene.vertex_data);
 
-        if(temp_t < 1.0 && temp_t > (0.0 + EPSILON)){
+        if(temp_t >= 0.0){
             return true;
         }
         
@@ -379,7 +346,7 @@ bool shadow(parser::Scene scene, parser::Vec3f w_i, parser::Vec3f intersection, 
             tri1.material_id = scene.meshes[i].material_id;
             double temp_t = intersectTriangle(shadow_ray, tri1, scene.vertex_data);
 
-            if(temp_t < 1.0 && temp_t > (0.0 + EPSILON)){
+            if(temp_t>0.0){
             return true;
             }
         }
@@ -387,16 +354,12 @@ bool shadow(parser::Scene scene, parser::Vec3f w_i, parser::Vec3f intersection, 
     for(int i = 0; i < scene.spheres.size(); i++){
 
         double temp_t = intersectSphere(shadow_ray, scene.spheres[i], scene.vertex_data);
-
-        if(temp_t < 1.0 && temp_t > (0.0 + EPSILON)){
+        if(temp_t >0.0){
 
             return true;
         }
-        
     }
-
     return false;
-
 }
 void produce_image(parser::Scene scene, int width, int height, unsigned char* image)
 {
@@ -405,12 +368,6 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
     {
         for (int x = 0; x < width; ++x)
         {
-            // for sphere
-            // for mesh
-            // for triangle
-            // different loops for each other
-            // hold intersecting point and if it is the first intersection point use light/shadow
-            // consider multiple light sources
             Ray r; // ray
             double tmin = __DBL_MAX__;
             int closestTri, closestSphere, closestMesh, closestMeshTri;
@@ -505,18 +462,6 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
             }    
             if(closestTri != -1) // the closest object that intersects with the ray is a triangle
             {
-                // the closest object that intersects with the ray is a triangle
-                // and we use scene.triangles[closestTri] to retrieve the data
-                /*for(int l = 0; l<scene.point_lights.size(); l++)
-                {
-                    // compute the shadows ray s from x to I
-                    //for each object p
-                        // if s intersects p before the light source
-                            // continue
-                    // pixel color += L_d + L_s
-                }*/
-                // add L_a
-                // for each light sources add L_d and L_s
                 parser::Vec3f shading = L_a(scene.triangles[closestTri].material_id, scene);
                 parser::Vec3i shading_int = clamb(shading);                 
                 image[i++] += shading_int.x;
@@ -531,35 +476,24 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                     w_o = substract(intersectionPoint,scene.cameras[0].position);
                     w_i = normalize(w_i);
                     w_o = normalize(w_o);
-                    /*if(shadow(scene, w_i, intersectionPoint, scene.point_lights[l].position)){ //if there is a shadow
-
+                    if(shadow(scene, w_i, intersectionPoint, scene.point_lights[l].position)){ //if there is a shadow
                         continue;
                     }
                     else{
-*/
                         parser::Vec3f diffuse_s = L_d(scene, w_i, E, n, scene.triangles[closestTri].material_id);
                         parser::Vec3f specular_s = L_s(scene, w_i, w_o, E, n, scene.triangles[closestTri].material_id);
-                        //L_m();
+
                         shading = add(add(diffuse_s,shading),specular_s); 
                         parser::Vec3i ld = clamb(shading);
-                        
-                        //shading = add(shading, diffuse_s);
-                        //shading = add(shading, specular_s);
-                        //shading = add(shading, mirror_s);
                         image[i-3] = ld.x;
                         image[i-2] = ld.y;
                         image[i-1] = ld.z;
-                    //}
+                    }
                 }
-
-
             }
             else if(closestMeshTri != -1 && closestMesh != -1) 
             {
-                // the closest object that intersects with the ray is a mesh
-                // and we use scene.meshes[closestMesh].triangles[closestMeshTri] to retrieve the data
-                // add L_a
-                // for each light sources add L_d and L_s
+
                 parser::Vec3f shading = L_a(scene.meshes[closestMesh].material_id , scene); 
                 parser::Vec3i shading_int = clamb(shading); 
                 image[i++] += shading_int.x;
@@ -573,35 +507,26 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                     w_o = substract(intersectionPoint,scene.cameras[0].position);
                     w_i = normalize(w_i);
                     w_o = normalize(w_o);
-                    /*if(shadow(scene, w_i, intersectionPoint, scene.point_lights[l].position)){ //if there is a shadow
-
+                    if(shadow(scene, w_i, intersectionPoint, scene.point_lights[l].position)){ //if there is a shadow
                         continue;
                     }
                     else{
-*/
+
                         parser::Vec3f diffuse_s = L_d(scene, w_i, E, n, scene.meshes[closestMesh].material_id);
                         parser::Vec3f specular_s = L_s(scene, w_i, w_o, E, n, scene.meshes[closestMesh].material_id);
                         //L_m();
                         shading = add(add(diffuse_s,shading),specular_s); 
                         parser::Vec3i ld = clamb(shading);
-                        
-                        //shading = add(shading, diffuse_s);
-                        //shading = add(shading, specular_s);
-                        //shading = add(shading, mirror_s);
+
                         image[i-3] = ld.x;
                         image[i-2] = ld.y;
                         image[i-1] = ld.z;
-                    //}
+                    }
                 }
-                
-
             }
             else if(closestSphere != -1) // the closest object that intersects with the ray is a sphere
             {
-                // the closest object that intersects with the ray is a sphere
-                // and we use scene.spheres[closestSphere] to retrieve the data
-                // add L_a
-                // for each light sources add L_d and L_s
+
                 parser::Vec3f shading = L_a(scene.spheres[closestSphere].material_id, scene);
                 parser::Vec3i shading_int = clamb(shading);
                 image[i++] = shading_int.x;
@@ -615,27 +540,22 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                     w_o = substract(intersectionPoint,scene.cameras[0].position);
                     w_i = normalize(w_i);
                     w_o = normalize(w_o);
-                    /*if(shadow(scene, w_i, intersectionPoint, scene.point_lights[l].position)){ //if there is a shadow
-
+                    if(shadow(scene, w_i, intersectionPoint, scene.point_lights[l].position)){ //if there is a shadow
                         continue;
                     }
-                    else{*/
+                    else{
 
                         parser::Vec3f diffuse_s = L_d(scene, w_i, E, n, scene.spheres[closestSphere].material_id);
                         parser::Vec3f specular_s = L_s(scene, w_i, w_o, E, n, scene.spheres[closestSphere].material_id);
                         //L_m();
                         shading = add(add(diffuse_s,shading),specular_s); 
                         parser::Vec3i ld = clamb(shading);
-                        
-                        //shading = add(shading, diffuse_s);
-                        //shading = add(shading, specular_s);
-                        //shading = add(shading, mirror_s);
+
                         image[i-3] = ld.x;
                         image[i-2] = ld.y;
                         image[i-1] = ld.z;
-                    //}
+                    }
                 }
-
             }
             else
             {
@@ -645,36 +565,17 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                 image[i++] = shading.y;
                 image[i++] = shading.z;
             }
-
-            /*int colIdx = x / columnWidth;
-            image[i++] = BAR_COLOR[colIdx][0];
-            image[i++] = BAR_COLOR[colIdx][1];
-            image[i++] = BAR_COLOR[colIdx][2];*/
         }
     }
-    write_ppm("test.ppm", image, width, height);
+    write_ppm(scene.cameras[0].image_name.c_str(), image, width, height);
 }
 int main(int argc, char* argv[])
 {
     // Sample usage for reading an XML scene file
     parser::Scene scene;
     scene.loadFromXml(argv[1]);
-    /****
-     **** 
-            mesh -> scene.meshes -> vector
-            faces -> scene.meshes[i].faces -> vector
-            vertex_id -> scene.meshes[i].faces[j].v0_id -> vertex0 of ith mesh jth faces -> int
-            vertex_data -> scene.vertex_data[scene.meshes[i].faces[j].v0_id].x
-                                                                            .y
-                                                                            .z -> we can reach each vertex coordinate
-     ****
-    ****/
-    // The code below creates a test pattern and writes
-    // it to a PPM file to demonstrate the usage of the
-    // ppm_write function.
-    //
-    // Normally, you would be running your ray tracing
-    // code here to produce the desired image.
+
+
     int width = scene.cameras[0].image_width, height = scene.cameras[0].image_height;
     int columnWidth = width / 8;
     unsigned char* image = new unsigned char [width * height * 3];
