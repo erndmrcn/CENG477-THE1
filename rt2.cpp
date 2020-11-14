@@ -663,7 +663,7 @@ int main(int argc, char* argv[])
     
     for(int i = 0; i < scene.cameras.size(); ++i){
 
-    	int width = scene.cameras[0].image_width, height = scene.cameras[0].image_height;
+    	int width = scene.cameras[i].image_width, height = scene.cameras[i].image_height;
 
     	unsigned char* image = new unsigned char [width * height * 3];
 
