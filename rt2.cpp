@@ -537,7 +537,7 @@ parser::Vec3f trace(parser::Scene scene, parser::Camera camera, Ray r, int depth
                     else{
                         parser::Vec3f diffuse_s = L_d(scene, w_i, E, n, scene.triangles[closestTri].material_id);
                         parser::Vec3f specular_s = L_s(scene, w_i, w_o, E, n, scene.triangles[closestTri].material_id);
-                        shading = add(shading, L_m(camera, scene, r, intersectionPoint, n, scene.triangles[closestTri].material_id, depth));
+                        //shading = add(shading, L_m(camera, scene, r, intersectionPoint, n, scene.triangles[closestTri].material_id, depth));
                         shading = add(add(diffuse_s,shading),specular_s); 
                         
                         
@@ -545,7 +545,7 @@ parser::Vec3f trace(parser::Scene scene, parser::Camera camera, Ray r, int depth
                     
                 }
 
-                //shading = add(shading, L_m(scene, r, intersectionPoint, n, scene.triangles[closestTri].material_id, depth));
+                shading = add(shading, L_m(camera, scene, r, intersectionPoint, n, scene.triangles[closestTri].material_id, depth));
             }
             else if(closestMeshTri != -1 && closestMesh != -1) 
             {
@@ -568,7 +568,7 @@ parser::Vec3f trace(parser::Scene scene, parser::Camera camera, Ray r, int depth
 
 	                    parser::Vec3f diffuse_s = L_d(scene, w_i, E, n, scene.meshes[closestMesh].material_id);
 	                    parser::Vec3f specular_s = L_s(scene, w_i, w_o, E, n, scene.meshes[closestMesh].material_id);
-	                    shading = add(shading, L_m(camera, scene, r, intersectionPoint, n, scene.meshes[closestMesh].material_id, depth));
+	                    //shading = add(shading, L_m(camera, scene, r, intersectionPoint, n, scene.meshes[closestMesh].material_id, depth));
 
 	                    shading = add(add(diffuse_s,shading),specular_s); 
 	                    
@@ -578,7 +578,7 @@ parser::Vec3f trace(parser::Scene scene, parser::Camera camera, Ray r, int depth
 	                
                 }
 
-               // shading = add(shading, L_m(scene, r, intersectionPoint, n, scene.meshes[closestMesh].material_id, depth));
+                shading = add(shading, L_m(camera, scene, r, intersectionPoint, n, scene.meshes[closestMesh].material_id, depth));
             }
             else if(closestSphere != -1) // the closest object that intersects with the ray  a sphere
             {
@@ -600,7 +600,7 @@ parser::Vec3f trace(parser::Scene scene, parser::Camera camera, Ray r, int depth
 
                         parser::Vec3f diffuse_s = L_d(scene, w_i, E, n, scene.spheres[closestSphere].material_id);
                         parser::Vec3f specular_s = L_s(scene, w_i, w_o, E, n, scene.spheres[closestSphere].material_id);
-                        shading = add(shading, L_m(camera, scene, r, intersectionPoint, n, scene.spheres[closestSphere].material_id, depth));
+                        //shading = add(shading, L_m(camera, scene, r, intersectionPoint, n, scene.spheres[closestSphere].material_id, depth));
                         shading = add(add(diffuse_s,shading),specular_s); 
                         
                         
@@ -609,7 +609,7 @@ parser::Vec3f trace(parser::Scene scene, parser::Camera camera, Ray r, int depth
                     
                 }
 
-                //shading = add(shading, L_m(scene, r, intersectionPoint, n, scene.spheres[closestSphere].material_id, depth));
+                shading = add(shading, L_m(camera, scene, r, intersectionPoint, n, scene.spheres[closestSphere].material_id, depth));
             }
             else
             {
@@ -663,7 +663,7 @@ int main(int argc, char* argv[])
     
     for(int i = 0; i < scene.cameras.size(); ++i){
 
-    	int width = scene.cameras[i].image_width, height = scene.cameras[i].image_height;
+    	int width = scene.cameras[0].image_width, height = scene.cameras[0].image_height;
 
     	unsigned char* image = new unsigned char [width * height * 3];
 
