@@ -2,10 +2,13 @@
 #include "parser.h"
 #include "ppm.h"
 #include <math.h>
+#include <chrono>
 #define ABS(a) ((a)>0?(a):-1*(a))
 #define EPSILON 0.000000001
+#define TMAX 200000.0
 typedef unsigned char RGB[3];
 using namespace std;
+using namespace chrono;
 class Ray
 {
     // represented like r(t) = e + dt 
@@ -20,6 +23,8 @@ struct color{
     int G;
     int B;
 };
+
+parser::Vec3f trace(parser::Scene scene, parser::Camera cam, Ray r, int depth);
 
 parser::Vec3f crossProduct(parser::Vec3f a, parser::Vec3f b)
 {
@@ -56,8 +61,8 @@ parser::Vec3f normalize(parser::Vec3f v)
     return tmp;
 }
 // compute clambed vector ---- should we check colors.x < 0 condition??
-parser::Vec3i clamb(parser::Vec3f colors){
-    parser::Vec3i clr;
+parser::Vec3f clamb(parser::Vec3f colors){
+    parser::Vec3f clr;
     if(colors.x > 255){ clr.x = 255; }
     else if(colors.x < 0) { clr.x = 0; }
     else { clr.x = (int) round(colors.x); }
@@ -187,17 +192,13 @@ Ray generateRay(int i, int j, parser::Camera cam)
     return tmp;
 }
 // interseciton of sphere, returns t value
-double intersectSphere(Ray r, parser::Sphere s, vector<parser::Vec3f> vertex)
+double intersectSphere(Ray r, parser::Sphere s, parser::Vec3f scenter, double sradius)
 {
     double A, B, C; // constants for the quadratic equation
     double delta; // solving for quadratic eqn.
-    parser::Vec3f scenter;
-    double sradius;
     parser::Vec3f p;
     double t, t1, t2;
     int i;
-    scenter = vertex[s.center_vertex_id-1];
-    sradius = s.radius;
     C = (r.a.x-scenter.x)*(r.a.x-scenter.x) + (r.a.y - scenter.y)*(r.a.y - scenter.y) + (r.a.z - scenter.z)*(r.a.z - scenter.z) - sradius*sradius;
 
     B = 2*r.b.x*(r.a.x - scenter.x) + 2*r.b.y*(r.a.y - scenter.y) + 2*r.b.z*(r.a.z - scenter.z);
@@ -205,7 +206,7 @@ double intersectSphere(Ray r, parser::Sphere s, vector<parser::Vec3f> vertex)
     A = r.b.x*r.b.x + r.b.y*r.b.y + r.b.z*r.b.z;
     delta = (B*B) - (4*A*C);
     if(delta<0) { return -1;} // no solution for quadratic eqn.
-    else if(delta <= 0+EPSILON && delta>=0-EPSILON) // has one distinct root
+    else if(delta <= 0 && delta>=0) // has one distinct root
     {   
         t = -B / (2*A);
     } 
@@ -221,17 +222,17 @@ double intersectSphere(Ray r, parser::Sphere s, vector<parser::Vec3f> vertex)
             t2 = t1;
             t1 = tmp;
         }
-        if(t1>=1.0) t = t1;
+        if(t1>=0.0) t = t1;
         else t = -1;
     }
     return t;
 }
 
 // intersection of triangle, returns t value
-double intersectTriangle(Ray r, parser::Triangle tri, vector<parser::Vec3f> vertex)
+double intersectTriangle(Ray r, parser::Triangle tri, parser::Vec3f ma, parser::Vec3f mb, parser::Vec3f mc)
 {
 
-    double  a,b,c,d,e,f,g,h,i,j,k,l;
+    /*double  a,b,c,d,e,f,g,h,i,j,k,l;
     double beta,gamma,t;
     
     double M;
@@ -256,17 +257,13 @@ double intersectTriangle(Ray r, parser::Triangle tri, vector<parser::Vec3f> vert
     j = ma.x-r.a.x;
     k = ma.y-r.a.y;
     l = ma.z-r.a.z;
-
     M = (a*(e*i - f*h)) -
         (d*(b*i - h*c)) +
         (g*(b*f - e*c));
-
     if (M==0) return -1;
-
     t = ((a*(e*l - f*k)) -
         (d*(b*l - k*c) )+
        (j*(b*f - e*c)))/(M);
-
     if (t<1.0) return -1;
     
     gamma = ((a*(k*i - l*h)) - (j*(b*i -c*h)) + (g*(b*l - c*k)) )/M;
@@ -277,7 +274,55 @@ double intersectTriangle(Ray r, parser::Triangle tri, vector<parser::Vec3f> vert
     
     if (beta<0 || beta>(1-gamma)) return -1;
     
+    return t;*/
+
+    parser::Vec3f  edge1, edge2;
+    double u,v,t;
+
+    edge1 = substract(ma, mb);
+    edge2 = substract(ma, mc);
+
+    parser::Vec3f pvec = crossProduct(r.b, edge2);
+    float det = dotProduct(edge1, pvec);
+
+    if(det < EPSILON){
+
+    	t = -1;
+    	return t;
+
+    } 
+    if(fabs(det) < EPSILON){
+    	t = -1;
+    	return t;	
+    } 
+
+    float invDet = 1 / det;
+
+    parser::Vec3f tvec = substract(ma, r.a);
+	u = dotProduct(tvec, pvec) * invDet;
+
+    if(u < 0 || u > 1){
+    	t = -1;
+    	return t;
+
+    } 
+
+    parser::Vec3f qvec = crossProduct(tvec, edge1);
+	v = dotProduct(r.b, qvec) * invDet;
+
+    if(v < 0 || u+v > 1){
+    	t = -1;
+    	return t;
+    } 
+
+    t = dotProduct(edge2, qvec) * invDet;
     return t;
+
+
+
+
+
+
 }
 //compute irradience E_i --> E_i = I / r^2 where r = |wi| and I is intensity
 parser::Vec3f E_i(parser::Vec3f Intensity, parser::Vec3f w_i, double r){
@@ -314,6 +359,47 @@ parser::Vec3f L_s(parser::Scene scene, parser::Vec3f w_i, parser::Vec3f w_o, par
     return result_Ls;
 }
 
+parser::Vec3f L_m(parser::Camera cam, parser::Scene scene, parser::Vec3f w_o, parser::Vec3f intersection, parser::Vec3f n, int obj_id, int depth){
+
+	parser::Vec3f result_Lm;
+
+	parser::Vec3f k_m = scene.materials[obj_id -1].mirror;
+
+	if(k_m.x == 0 && k_m.y == 0 && k_m.z == 0){
+
+		result_Lm.x = 0;
+		result_Lm.y = 0;
+		result_Lm.z = 0;
+
+	}
+	else{
+
+		
+		parser::Vec3f w_o2;
+		parser::Vec3f w_r;
+		Ray rr;
+
+		w_o2 = mult(n, 2*dotProduct(w_o, n));
+
+		w_r = add(mult(w_o, -1), w_o2);
+		w_r = normalize(w_r);
+
+		rr.a.x = intersection.x; //+ scene.shadow_ray_epsilon;
+		rr.a.y = intersection.y; //+ scene.shadow_ray_epsilon;
+		rr.a.z = intersection.z; //+ scene.shadow_ray_epsilon;
+
+		rr.b = w_r;
+
+		result_Lm = trace(scene, cam, rr, depth);
+
+		result_Lm = elementMult(result_Lm, k_m);
+
+		
+	}
+
+	return result_Lm;
+}
+
 bool shadow(parser::Scene scene, parser::Vec3f w_i, parser::Vec3f intersection, parser::Vec3f light_pos){
     const float Epsilon = scene.shadow_ray_epsilon;
     double t_s = 0.0f;
@@ -326,10 +412,14 @@ bool shadow(parser::Scene scene, parser::Vec3f w_i, parser::Vec3f intersection, 
     shadow_ray.b = w_i; //distance vector of shadow ray
 
     for(int i = 0; i < scene.triangles.size(); i++){
+        parser::Triangle triangle = scene.triangles[i];
+        parser::Vec3f v1, v2, v3;
+        v1 = scene.vertex_data[triangle.indices.v0_id-1];
+        v2 = scene.vertex_data[triangle.indices.v1_id-1];
+        v3 = scene.vertex_data[triangle.indices.v2_id-1];
+        double temp_t = intersectTriangle(shadow_ray, triangle, v1, v2, v3);
 
-        double temp_t = intersectTriangle(shadow_ray, scene.triangles[i], scene.vertex_data);
-
-        if(temp_t >= 0.0){
+        if(temp_t > (0.0) && temp_t < distance){
             return true;
         }
         
@@ -344,66 +434,90 @@ bool shadow(parser::Scene scene, parser::Vec3f w_i, parser::Vec3f intersection, 
             tri1.indices.v1_id = face.v1_id;
             tri1.indices.v2_id = face.v2_id;
             tri1.material_id = scene.meshes[i].material_id;
-            double temp_t = intersectTriangle(shadow_ray, tri1, scene.vertex_data);
+            parser::Vec3f v1, v2, v3;
+            v1 = scene.vertex_data[tri1.indices.v0_id-1];
+            v2 = scene.vertex_data[tri1.indices.v1_id-1];
+            v3 = scene.vertex_data[tri1.indices.v2_id-1];
+        
+            double temp_t = intersectTriangle(shadow_ray, tri1, v1, v2, v3);
 
-            if(temp_t>0.0){
-            return true;
+            if(temp_t> (0.0) && temp_t < distance){
+                
+                 return true;
             }
         }
     }
     for(int i = 0; i < scene.spheres.size(); i++){
-
-        double temp_t = intersectSphere(shadow_ray, scene.spheres[i], scene.vertex_data);
-        if(temp_t >0.0){
-
+        parser::Sphere sphere = scene.spheres[i];
+        parser::Vec3f center = scene.vertex_data[sphere.center_vertex_id-1];
+        double temp_t = intersectSphere(shadow_ray, sphere, center, sphere.radius);
+        
+        if(temp_t >= (0.0 + Epsilon) && temp_t < distance){
+            
             return true;
         }
     }
     return false;
 }
-void produce_image(parser::Scene scene, int width, int height, unsigned char* image)
-{
-    int i = 0;
-    for (int y = 0; y < height; ++y)
-    {
-        for (int x = 0; x < width; ++x)
-        {
-            Ray r; // ray
-            double tmin = __DBL_MAX__;
-            int closestTri, closestSphere, closestMesh, closestMeshTri;
-            closestTri = -1;
-            closestSphere = -1;
-            closestMesh = -1;
-            closestMeshTri = -1;
-            r = generateRay(x,y, scene.cameras[0]);
-            parser::Vec3f intersectionPoint;
-            parser::Vec3f n; //normal vector
-            parser::Vec3f w_i;
-            parser::Vec3f I; 
-            parser::Vec3f E;
-            parser::Vec3f w_o;
-            // check triangles
-            for(int k = 0; k<scene.triangles.size(); k++)
-            {
+
+parser::Vec3f trace(parser::Scene scene, parser::Camera camera, Ray r, int depth){
+
+	parser::Vec3f shading;
+
+	if(depth == 0){
+
+		
+		shading.x = 0;
+		shading.y = 0;
+		shading.z = 0;
+	}
+	else{
+
+		depth--;
+
+		double tmin = __DBL_MAX__;
+        
+        int closestTri, closestSphere, closestMesh, closestMeshTri;
+        parser::Vec3f intersectionPoint;
+        parser::Vec3f n; //normal vector
+        parser::Vec3f w_i;
+        parser::Vec3f I; 
+        parser::Vec3f E;
+        parser::Vec3f w_o;
+        
+
+        closestTri = -1;
+        closestSphere = -1;
+        closestMesh = -1;
+        closestMeshTri = -1;
+
+        //check triangles
+        for(int k = 0; k<scene.triangles.size(); k++){
                 double t;
-                t = intersectTriangle(r, scene.triangles[k], scene.vertex_data);
-                if(t>=1)
+                parser::Triangle triangle = scene.triangles[k];
+                parser::Vec3f v1, v2, v3;
+                v1 = scene.vertex_data[triangle.indices.v0_id-1];
+                v2 = scene.vertex_data[triangle.indices.v1_id-1];
+                v3 = scene.vertex_data[triangle.indices.v2_id-1];
+                t = intersectTriangle(r, triangle, v1, v2, v3);
+               if(t>=0)
                 {
                     if(t<tmin)
                     {
                         tmin = t;
-                        closestTri = k; //closest_sphere = -1 ?? olması da gerekmiyor mu burada?
+                        closestTri = k; 
                         closestSphere = -1;
                         closestMesh = -1;
                         closestMeshTri = -1;
+
                         intersectionPoint = mult(r.b, t);
                         intersectionPoint = add(intersectionPoint, r.a);
+
                         n = find_normal_t(scene, k);
                         n = normalize(n);
                     }
                 }
-            }
-
+        }
             // check meshes
             for(int k = 0; k<scene.meshes.size(); k++)
             {
@@ -415,9 +529,13 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                     tri.indices.v1_id = scene.meshes[k].faces[q].v1_id;
                     tri.indices.v2_id = scene.meshes[k].faces[q].v2_id;
                     tri.material_id = scene.meshes[k].material_id;
-                    t = intersectTriangle(r, tri, scene.vertex_data);
+                    parser::Vec3f v1, v2, v3;
+                    v1 = scene.vertex_data[tri.indices.v0_id-1];
+                    v2 = scene.vertex_data[tri.indices.v1_id-1];
+                    v3 = scene.vertex_data[tri.indices.v2_id-1];
+                    t = intersectTriangle(r, tri, v1, v2, v3);
 
-                    if(t>=scene.cameras[0].near_distance)
+                    if(t>=0)
                     {
                         if(t<tmin)
                         {
@@ -437,8 +555,10 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
             for(int k = 0; k<scene.spheres.size(); k++)
             {
                 double t;
-                t = intersectSphere(r, scene.spheres[k], scene.vertex_data);
-                if(t>=1)
+                parser::Sphere sphere = scene.spheres[k];
+                parser::Vec3f center = scene.vertex_data[sphere.center_vertex_id-1];
+                t = intersectSphere(r, sphere, center, sphere.radius);
+                if(t>=0)
                 {
                     if(t<tmin)
                     {
@@ -459,21 +579,18 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                         n = normalize(n);       
                     }
                 }
-            }    
+            }
             if(closestTri != -1) // the closest object that intersects with the ray is a triangle
             {
-                parser::Vec3f shading = L_a(scene.triangles[closestTri].material_id, scene);
-                parser::Vec3i shading_int = clamb(shading);                 
-                image[i++] += shading_int.x;
-                image[i++] += shading_int.y;
-                image[i++] += shading_int.z;
+                shading = L_a(scene.triangles[closestTri].material_id, scene);
+                
 
                 for(int l = 0; l < scene.point_lights.size(); l++){
                     w_i = substract(intersectionPoint,scene.point_lights[l].position);
                     double distance = length(w_i);
                     I = scene.point_lights[l].intensity; 
                     E = E_i(I, w_i,distance);
-                    w_o = substract(intersectionPoint,scene.cameras[0].position);
+                    w_o = substract(intersectionPoint, r.a);
                     w_i = normalize(w_i);
                     w_o = normalize(w_o);
                     if(shadow(scene, w_i, intersectionPoint, scene.point_lights[l].position)){ //if there is a shadow
@@ -482,62 +599,60 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
                     else{
                         parser::Vec3f diffuse_s = L_d(scene, w_i, E, n, scene.triangles[closestTri].material_id);
                         parser::Vec3f specular_s = L_s(scene, w_i, w_o, E, n, scene.triangles[closestTri].material_id);
-
+                        //shading = add(shading, L_m(camera, scene, r, intersectionPoint, n, scene.triangles[closestTri].material_id, depth));
                         shading = add(add(diffuse_s,shading),specular_s); 
-                        parser::Vec3i ld = clamb(shading);
-                        image[i-3] = ld.x;
-                        image[i-2] = ld.y;
-                        image[i-1] = ld.z;
+                        
+                        
                     }
+                    
                 }
+
+                shading = add(shading, L_m(camera, scene, w_o, intersectionPoint, n, scene.triangles[closestTri].material_id, depth));
             }
             else if(closestMeshTri != -1 && closestMesh != -1) 
             {
 
-                parser::Vec3f shading = L_a(scene.meshes[closestMesh].material_id , scene); 
-                parser::Vec3i shading_int = clamb(shading); 
-                image[i++] += shading_int.x;
-                image[i++] += shading_int.y;
-                image[i++] += shading_int.z;
-                for(int l = 0; l < scene.point_lights.size(); l++){
-                    w_i = substract(intersectionPoint,scene.point_lights[l].position);
-                    double distance = length(w_i);
-                    I = scene.point_lights[l].intensity; 
-                    E = E_i(I, w_i,distance);
-                    w_o = substract(intersectionPoint,scene.cameras[0].position);
-                    w_i = normalize(w_i);
-                    w_o = normalize(w_o);
-                    if(shadow(scene, w_i, intersectionPoint, scene.point_lights[l].position)){ //if there is a shadow
-                        continue;
-                    }
-                    else{
+                shading = L_a(scene.meshes[closestMesh].material_id , scene); 
+                 
+               	for(int l = 0; l < scene.point_lights.size(); l++){
+	                w_i = substract(intersectionPoint,scene.point_lights[l].position);
+	                double distance = length(w_i);
+	                I = scene.point_lights[l].intensity; 
+	                E = E_i(I, w_i,distance);
+	                w_o = substract(intersectionPoint,r.a);
+	                w_i = normalize(w_i);
+	                w_o = normalize(w_o);
+	                    
+	                if(shadow(scene, w_i, intersectionPoint, scene.point_lights[l].position)){ //if there is a shadow
+	                    continue;
+	                }
+	                else{
 
-                        parser::Vec3f diffuse_s = L_d(scene, w_i, E, n, scene.meshes[closestMesh].material_id);
-                        parser::Vec3f specular_s = L_s(scene, w_i, w_o, E, n, scene.meshes[closestMesh].material_id);
-                        //L_m();
-                        shading = add(add(diffuse_s,shading),specular_s); 
-                        parser::Vec3i ld = clamb(shading);
+	                    parser::Vec3f diffuse_s = L_d(scene, w_i, E, n, scene.meshes[closestMesh].material_id);
+	                    parser::Vec3f specular_s = L_s(scene, w_i, w_o, E, n, scene.meshes[closestMesh].material_id);
+	                    //shading = add(shading, L_m(camera, scene, r, intersectionPoint, n, scene.meshes[closestMesh].material_id, depth));
 
-                        image[i-3] = ld.x;
-                        image[i-2] = ld.y;
-                        image[i-1] = ld.z;
-                    }
+	                    shading = add(add(diffuse_s,shading),specular_s); 
+	                    
+	                   
+	                }
+	                
+	                
                 }
+
+                shading = add(shading, L_m(camera, scene, w_o, intersectionPoint, n, scene.meshes[closestMesh].material_id, depth));
             }
-            else if(closestSphere != -1) // the closest object that intersects with the ray is a sphere
+            else if(closestSphere != -1) // the closest object that intersects with the ray  a sphere
             {
 
-                parser::Vec3f shading = L_a(scene.spheres[closestSphere].material_id, scene);
-                parser::Vec3i shading_int = clamb(shading);
-                image[i++] = shading_int.x;
-                image[i++] = shading_int.y;
-                image[i++] = shading_int.z;
+                shading = L_a(scene.spheres[closestSphere].material_id, scene);
+               
                 for(int l = 0; l < scene.point_lights.size(); l++){
                     w_i = substract(intersectionPoint, scene.point_lights[l].position);
                     double distance = length(w_i);
                     I = scene.point_lights[l].intensity; 
                     E = E_i(I, w_i,distance);
-                    w_o = substract(intersectionPoint,scene.cameras[0].position);
+                    w_o = substract(intersectionPoint,r.a);
                     w_i = normalize(w_i);
                     w_o = normalize(w_o);
                     if(shadow(scene, w_i, intersectionPoint, scene.point_lights[l].position)){ //if there is a shadow
@@ -547,37 +662,77 @@ void produce_image(parser::Scene scene, int width, int height, unsigned char* im
 
                         parser::Vec3f diffuse_s = L_d(scene, w_i, E, n, scene.spheres[closestSphere].material_id);
                         parser::Vec3f specular_s = L_s(scene, w_i, w_o, E, n, scene.spheres[closestSphere].material_id);
-                        //L_m();
+                        //shading = add(shading, L_m(camera, scene, r, intersectionPoint, n, scene.spheres[closestSphere].material_id, depth));
                         shading = add(add(diffuse_s,shading),specular_s); 
-                        parser::Vec3i ld = clamb(shading);
-
-                        image[i-3] = ld.x;
-                        image[i-2] = ld.y;
-                        image[i-1] = ld.z;
+                        
+                        
                     }
+
+                    
                 }
+
+                shading = add(shading, L_m(camera, scene, w_o, intersectionPoint, n, scene.spheres[closestSphere].material_id, depth));
             }
             else
             {
                 /* background color */
-                parser::Vec3i shading = scene.background_color;
-                image[i++] = shading.x;
-                image[i++] = shading.y;
-                image[i++] = shading.z;
+                shading.x = scene.background_color.x;
+                shading.y = scene.background_color.y;
+                shading.z = scene.background_color.z;
             }
-        }
+
+            
     }
-    write_ppm(scene.cameras[0].image_name.c_str(), image, width, height);
+
+        return shading;
+
 }
+
+void produceImage(parser::Scene scene, parser::Camera cam, int width, int height, unsigned char* image){
+
+	
+	int p = 0;
+
+	for(int y = 0; y < height; ++y){
+
+		for(int x = 0; x < width; ++x){
+
+			Ray r = generateRay(x, y, cam);
+
+			parser::Vec3f pixelShading = trace(scene, cam, r, scene.max_recursion_depth + 1);
+
+			pixelShading = clamb(pixelShading);
+
+			image[p++] = pixelShading.x; 
+			image[p++] = pixelShading.y; 
+			image[p++] = pixelShading.z; 
+
+		}
+	}
+
+	write_ppm(cam.image_name.c_str(), image, width, height);
+}
+
 int main(int argc, char* argv[])
 {
+    auto start = high_resolution_clock::now(); 
     // Sample usage for reading an XML scene file
     parser::Scene scene;
     scene.loadFromXml(argv[1]);
 
+    
+    for(int i = 0; i < scene.cameras.size(); ++i){
 
-    int width = scene.cameras[0].image_width, height = scene.cameras[0].image_height;
-    int columnWidth = width / 8;
-    unsigned char* image = new unsigned char [width * height * 3];
-    produce_image(scene, width, height, image);
+    	int width = scene.cameras[i].image_width, height = scene.cameras[i].image_height;
+
+    	unsigned char* image = new unsigned char [width * height * 3];
+
+    	produceImage(scene, scene.cameras[i], width, height, image);
+	}
+    auto stop = high_resolution_clock::now(); 
+    auto duration = duration_cast<microseconds>(stop - start); 
+    cout << "Time taken by function: "
+         << (float) duration.count()/1000000 << " seconds" << endl; 
+  
+    return 0; 
 }
